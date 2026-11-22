@@ -112,7 +112,7 @@ function dbt_help(): void
 {
     Menu::line('DBitter — universal MySQL migration tool');
     Menu::line();
-    Menu::line('Usage: php start.php <action> [--options]   (or no action for interactive menu)');
+    Menu::line('Usage: dbitter <action> [--options]   (or no action for interactive menu)');
     Menu::line();
     Menu::line('Actions:');
     foreach (DBT_ACTIONS as $name => $class) {

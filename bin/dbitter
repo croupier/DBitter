@@ -1,0 +1,27 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Composer-bin обёртка DBitter: `vendor/bin/dbitter <action> [--options]`.
+ * Ищет автолоадер в двух расположениях — пакет, установленный зависимостью
+ * (vendor/croupier/dbitter/bin → на три уровня вверх до vendor/autoload.php),
+ * и standalone-репозиторий (bin/../vendor/autoload.php). Если автолоадера нет
+ * вовсе (standalone без composer install), это не ошибка: start.php подключит
+ * lib/bootstrap.php с собственным PSR-4-подобным автозагрузчиком классов.
+ * Вся логика разбора argv и диспетчеризации живёт в start.php — она общая
+ * для обоих способов запуска (`php start.php` остаётся рабочим входом).
+ */
+
+declare(strict_types=1);
+
+foreach ([
+    __DIR__ . '/../../../autoload.php', // установлен как зависимость проекта
+    __DIR__ . '/../vendor/autoload.php', // standalone-репозиторий DBitter
+] as $dbtAutoload) {
+    if (is_file($dbtAutoload)) {
+        require $dbtAutoload;
+        break;
+    }
+}
+
+require __DIR__ . '/../start.php';

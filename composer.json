@@ -1,19 +1,30 @@
 {
-    "name": "dbitter/dbitter",
-    "description": "DBitter — universal MySQL migration tool (CLI)",
-    "type": "project",
+    "name": "croupier/dbitter",
+    "description": "DBitter — universal MySQL migration CLI tool: export/import dumps, create/drop databases and users, over local/WSL/Docker/SSH/PDO transports",
+    "type": "library",
     "license": "MIT",
+    "keywords": ["mysql", "migration", "dump", "mysqldump", "cli", "database", "wsl", "docker", "ssh"],
     "require": {
-        "php": ">=8.3"
+        "php": ">=8.3",
+        "ext-zlib": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^12.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "DbTools\\Lib\\": "lib/",
+            "DbTools\\Transport\\": "lib/Transport/",
+            "DbTools\\Conf\\": "conf/",
+            "DbTools\\Action\\": "actions/"
+        }
     },
     "autoload-dev": {
         "psr-4": {
             "DbTools\\Tests\\": "tests/"
         }
     },
+    "bin": ["bin/dbitter"],
     "config": {
         "sort-packages": true,
         "optimize-autoloader": true
