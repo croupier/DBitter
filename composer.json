@@ -4,9 +4,17 @@
     "type": "library",
     "license": "MIT",
     "keywords": ["mysql", "migration", "dump", "mysqldump", "cli", "database", "wsl", "docker", "ssh"],
+    "homepage": "https://github.com/croupier/DBitter",
+    "support": {
+        "issues": "https://github.com/croupier/DBitter/issues",
+        "source": "https://github.com/croupier/DBitter"
+    },
     "require": {
         "php": ">=8.3",
         "ext-zlib": "*"
+    },
+    "suggest": {
+        "ext-pdo_mysql": "Required for the pdo transport (SQL actions without mysql/mysqldump binaries)"
     },
     "require-dev": {
         "phpunit/phpunit": "^12.0"

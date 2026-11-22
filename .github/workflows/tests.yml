@@ -1,0 +1,34 @@
+# Юнит-тесты на PHP 8.3/8.4/8.5. Интеграционные в CI не запускаются:
+# им нужен живой MySQL (локально — DBT_IT=1 и config.local.php).
+
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['8.3', '8.4', '8.5']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: zlib, pdo_mysql
+          coverage: none
+
+      - name: Validate composer.json
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer update --no-interaction --prefer-dist
+
+      - name: Run unit tests
+        run: vendor/bin/phpunit --testsuite unit

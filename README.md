@@ -159,4 +159,4 @@ MySQL server and admin credentials in `config.local.php`.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) — release notes in [CHANGELOG.md](CHANGELOG.md).

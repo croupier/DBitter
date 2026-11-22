@@ -160,4 +160,4 @@ DBT_IT=1 composer test-it   # интеграционные тесты на жи�
 
 ## Лицензия
 
-[MIT](LICENSE)
+[MIT](LICENSE) — история изменений в [CHANGELOG.md](CHANGELOG.md).
