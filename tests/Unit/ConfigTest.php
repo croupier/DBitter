@@ -31,11 +31,15 @@ final class ConfigTest extends TestCase
      * Готовит изолированный корень и экстрактор conf/partial.php,
      * который возвращает ТОЛЬКО ключ name — худший случай неполного
      * экстрактора, на котором проверяется нормализация дефолтов.
+     * Каталог .git в base — граница discovery: маркеров проекта нет,
+     * обход вверх останавливается, Config работает в legacy-фолбэке
+     * (project = dirname(tool)), как и ожидают эти тесты.
      */
     protected function setUp(): void
     {
         $this->base = sys_get_temp_dir() . '/dbt_cfg_' . bin2hex(random_bytes(3));
         mkdir($this->base . '/tool/conf', 0775, true);
+        mkdir($this->base . '/.git');
         // Намеренно частичный экстрактор: есть только "name", остальное отсутствует.
         file_put_contents(
             $this->base . '/tool/conf/partial.php',
@@ -65,7 +69,7 @@ final class ConfigTest extends TestCase
      */
     public function testResolveDbNormalizesMissingKeys(): void
     {
-        $db = (new Config($this->root(), ['conf' => 'partial']))->db();
+        $db = (new Config($this->root(), ['conf' => 'partial'], $this->base))->db();
         $this->assertSame('only_name', $db['name']);
         $this->assertSame('127.0.0.1', $db['host']);
         $this->assertSame(3306, $db['port']);
@@ -84,7 +88,7 @@ final class ConfigTest extends TestCase
      */
     public function testCliOverridesExtractorValues(): void
     {
-        $db = (new Config($this->root(), ['conf' => 'partial', 'host' => 'db.local', 'port' => '3307']))->db();
+        $db = (new Config($this->root(), ['conf' => 'partial', 'host' => 'db.local', 'port' => '3307'], $this->base))->db();
         $this->assertSame('db.local', $db['host']);
         $this->assertSame(3307, $db['port']);
     }
@@ -97,10 +101,10 @@ final class ConfigTest extends TestCase
     public function testOptPrecedenceCliOverProfileDump(): void
     {
         file_put_contents($this->root() . '/config.php', '<?php return ["dump" => ["kind" => "schema", "compress" => "gzip"]];');
-        $withCli = new Config($this->root(), ['conf' => 'partial', 'kind' => 'full']);
+        $withCli = new Config($this->root(), ['conf' => 'partial', 'kind' => 'full'], $this->base);
         $this->assertSame('full', $withCli->opt('kind', 'x'));
         $this->assertSame('gzip', $withCli->opt('compress', 'x')); // откат к profile.dump
-        $noCli = new Config($this->root(), ['conf' => 'partial']);
+        $noCli = new Config($this->root(), ['conf' => 'partial'], $this->base);
         $this->assertSame('schema', $noCli->opt('kind', 'x'));
         $this->assertSame('fallback', $noCli->opt('absent', 'fallback'));
     }
@@ -113,16 +117,17 @@ final class ConfigTest extends TestCase
     public function testSecretsCollectsNonEmptyPasswords(): void
     {
         file_put_contents($this->root() . '/config.php', '<?php return ["admin" => ["user" => "root", "pass" => "topsecret"]];');
-        $cfg = new Config($this->root(), ['conf' => 'partial']);
+        $cfg = new Config($this->root(), ['conf' => 'partial'], $this->base);
         $this->assertSame(['topsecret'], $cfg->secrets()); // пароль БД пуст, admin-пароль есть
     }
 
     /**
-     * Без настройки dump.dir каталог дампов по умолчанию — <корень>/dump.
+     * Без настройки dump.dir и без найденного от cwd проекта (legacy-фолбэк)
+     * каталог дампов по умолчанию — <корень инструмента>/dump.
      */
     public function testDumpDirDefaultsUnderRoot(): void
     {
-        $cfg = new Config($this->root(), ['conf' => 'partial']);
+        $cfg = new Config($this->root(), ['conf' => 'partial'], $this->base);
         $this->assertSame($this->root() . '/dump', $cfg->dumpDir());
     }
 
@@ -134,7 +139,7 @@ final class ConfigTest extends TestCase
     #[DataProvider('confMarkers')]
     public function testDetectConf(string $marker, string $expected): void
     {
-        // detectConf() смотрит на dirname(root) как на каталог проекта.
+        // detectConf() принимает корень проекта напрямую (discovery или фолбэк).
         $project = $this->base;
         // Чистим маркеры предыдущего набора данных (провайдер запускает
         // несколько тестов подряд в одном и том же временном проекте).
@@ -148,7 +153,7 @@ final class ConfigTest extends TestCase
             touch($project . '/' . $marker);
         }
         $m = new \ReflectionMethod(Config::class, 'detectConf');
-        $this->assertSame($expected, $m->invoke(null, $this->root()));
+        $this->assertSame($expected, $m->invoke(null, $project));
     }
 
     /**

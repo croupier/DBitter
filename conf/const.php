@@ -6,10 +6,12 @@ declare(strict_types=1);
  * Экстрактор «const»: реквизиты БД берутся из PHP-файла, возвращающего массив.
  *
  * Файл может отдавать как полную нормализованную схему, так и обёртку
- * ['db' => [...]]. По умолчанию читается config.local.php в корне DBitter —
- * чтобы секреты не попадали в коммиты; путь переопределяется через --config.
- * В отличие от wp-экстрактора этот файл осознанно исполняется (require):
- * это собственный конфиг пользователя, а не чужой код проекта.
+ * ['db' => [...]]. Дефолтный путь ищется цепочкой: dbitter.local.php и
+ * dbitter.php в корне проекта (секреты — в local-файле, он не коммитится),
+ * затем config.local.php в корне инструмента (legacy standalone-режим).
+ * Путь переопределяется через --config. В отличие от wp-экстрактора этот
+ * файл осознанно исполняется (require): это собственный конфиг пользователя,
+ * а не чужой код проекта.
  */
 
 /**
@@ -22,27 +24,44 @@ declare(strict_types=1);
  */
 return static function (array $opts): array {
     $root = $opts['root'];
-    // Дефолт — config.local.php рядом с lib/ (dirname(__DIR__) = корень DBitter),
-    // а не в корне проекта: локальный файл с секретами не коммитится.
-    $path = $opts['path'] ?: dirname(__DIR__) . '/config.local.php';
-    if (!is_file($path)) {
+    // Цепочка дефолтов: проектные профили (local приоритетнее — там секреты),
+    // затем legacy config.local.php в корне инструмента (dirname(__DIR__)).
+    // Явный --config/path отменяет цепочку и берётся как есть.
+    $candidates = $opts['path']
+        ? [$opts['path']]
+        : [
+            $root . '/dbitter.local.php',
+            $root . '/dbitter.php',
+            dirname(__DIR__) . '/config.local.php',
+        ];
+    $path = null;
+    $data = null;
+    foreach ($candidates as $candidate) {
+        if (!is_file($candidate)) {
+            continue;
+        }
+        // require возвращает значение `return` из файла — ожидаем массив.
+        $loaded = require $candidate;
+        if (!is_array($loaded)) {
+            throw new RuntimeException("const config did not return an array: {$candidate}");
+        }
+        // Поддерживаем обе формы: обёртку ['db' => [...]] и плоский массив.
+        // Файл без имени БД пропускаем: dbitter.local.php может содержать
+        // только настройки транспорта/админа, а реквизиты — в dbitter.php.
+        $candidateDb = $loaded['db'] ?? $loaded;
+        if (!empty($candidateDb['name'])) {
+            $path = $candidate;
+            $data = $loaded;
+            break;
+        }
+    }
+    if ($path === null) {
         throw new RuntimeException(
-            "const extractor needs a config file returning an array; none at {$path}. "
-            . 'Create config.local.php with a "db" key or pass --config=path.'
+            'const extractor needs a config file returning an array with a database name; none found. '
+            . 'Create dbitter.local.php with a "db" key in the project root or pass --config=path.'
         );
     }
-    // require возвращает значение `return` из файла — ожидаем массив.
-    $data = require $path;
-    if (!is_array($data)) {
-        throw new RuntimeException("const config did not return an array: {$path}");
-    }
-    // Поддерживаем обе формы: обёртку ['db' => [...]] и плоский массив реквизитов.
     $db = $data['db'] ?? $data;
-
-    // Единственное обязательное поле — имя БД; остальное имеет дефолты.
-    if (empty($db['name'])) {
-        throw new RuntimeException('const config missing "name" (database name)');
-    }
 
     return [
         'engine' => $db['engine'] ?? 'mysql',

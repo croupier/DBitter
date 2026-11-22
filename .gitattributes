@@ -4,3 +4,18 @@
 *.sql text eol=lf
 *.gz binary
 *.zst binary
+
+# Composer-архив (dist): рабочий профиль автора и тестовое оснащение
+# не должны уезжать потребителям пакета — у них свои dbitter.php в проекте.
+# Секреты и vendor закрываем ЯВНО: composer archive не всегда применяет
+# .gitignore-фильтр, полагаться на него нельзя.
+/config.php export-ignore
+/config.local.php export-ignore
+/tests export-ignore
+/phpunit.xml.dist export-ignore
+/dump export-ignore
+/vendor export-ignore
+/composer.lock export-ignore
+/.phpunit.cache export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore

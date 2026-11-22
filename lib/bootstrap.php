@@ -54,6 +54,6 @@ spl_autoload_register(static function (string $class): void {
     }
 });
 
-// Функции dbt_root()/dbt_project()/dbt_now() нужны многим классам, поэтому
+// Функции dbt_root()/dbt_now() нужны многим классам, поэтому
 // подключаются сразу, а не через автозагрузчик (он работает только для классов).
 require ROOT . '/lib/helpers.php';

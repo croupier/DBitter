@@ -6,23 +6,31 @@ namespace DbTools\Lib;
 
 /**
  * Единая точка конфигурации DBitter. Приоритет источников (от старшего
- * к младшему): аргументы CLI > config.local.php > config.php > встроенные
- * дефолты. Параметры БД извлекаются экстрактором из conf/<имя>.php
- * (wp/laravel/env/const; wp-config.php ПАРСИТСЯ, а не require-ится),
- * затем нормализуются до полной схемы и перекрываются CLI-ключами.
- * Также отдаёт target/транспорт, админ-доступ, опции дампов и список
- * секретов для маскировки (Command::mask). Используется всеми действиями.
+ * к младшему): аргументы CLI > dbitter.local.php > dbitter.php (профиль
+ * проекта) > config.local.php > config.php (профиль инструмента) >
+ * встроенные дефолты. Корень проекта ищется вверх от cwd по маркерам
+ * (dbitter.php, wp-config.php, artisan, .env, composer.json); если ничего
+ * не найдено — legacy-фолбэк: родитель каталога инструмента. Параметры БД
+ * извлекаются экстрактором из conf/<имя>.php (wp/laravel/env/const;
+ * wp-config.php ПАРСИТСЯ, а не require-ится), затем нормализуются до полной
+ * схемы и перекрываются CLI-ключами. Также отдаёт target/транспорт,
+ * админ-доступ, опции дампов и список секретов для маскировки
+ * (Command::mask). Используется всеми действиями.
  */
 final class Config
 {
-    /** @var array<string,mixed> Слитый профиль: config.php + config.local.php поверх. */
+    /** @var array<string,mixed> Слитый профиль: слои инструмента + слои проекта поверх. */
     private array $profile;
     /** @var array<string,mixed> Разобранные аргументы/опции CLI (высший приоритет). */
     private array $cli;
     /** @var array<string,mixed> Нормализованные параметры БД (host/port/user/pass/name/...). */
     private array $db;
-    /** @var string Корень инструмента (DBitter); родитель — каталог проекта. */
+    /** @var string Корень инструмента (DBitter): код, conf/, профили config*.php. */
     private string $root;
+    /** @var string Корень проекта: найден вверх от cwd либо dirname(root) в legacy-фолбэке. */
+    private string $projectRoot;
+    /** @var bool Проект найден discovery-проходом от cwd (а не legacy-фолбэком). */
+    private bool $projectFound;
 
     /**
      * Загружает профиль и сразу разрешает параметры БД, чтобы дальше
@@ -30,35 +38,101 @@ final class Config
      *
      * @param string $root Путь к корню инструмента (каталог DBitter).
      * @param array<string,mixed> $cli Опции командной строки.
+     * @param string|null $cwd Стартовый каталог discovery проекта; null = getcwd().
+     *                         Инъекция нужна тестам и сабпроцессам с другим cwd.
      * @throws \RuntimeException Если выбранный экстрактор conf не найден.
      */
-    public function __construct(string $root, array $cli = [])
+    public function __construct(string $root, array $cli = [], ?string $cwd = null)
     {
         $this->root = $root;
         $this->cli = $cli;
-        $this->profile = self::loadProfile($root);
+        $discovered = self::discoverProject($cwd ?? (string) getcwd(), $root);
+        // Фолбэк повторяет историческое поведение standalone-режима: инструмент
+        // лежит внутри проекта (или рядом), проект = родитель каталога инструмента.
+        $this->projectRoot = $discovered ?? dirname($root);
+        $this->projectFound = $discovered !== null;
+        $this->profile = self::loadProfile($root, $this->projectRoot);
         $this->db = $this->resolveDb();
     }
 
     /**
-     * Загружает профиль конфигурации: базовый config.php, затем
-     * config.local.php рекурсивно поверх (array_replace_recursive) —
-     * локальные переопределения (пароли, target=wsl и т.п.) не требуют
-     * правок основного файла и не попадают в git.
+     * Ищет корень проекта вверх от cwd до корня файловой системы.
+     *
+     * Маркеры проекта в каталоге: dbitter.php (явный профиль DBitter),
+     * wp-config.php, artisan, .env, composer.json. Каталог самого инструмента
+     * пропускается: DBitter не должен считать «проектом» сам себя (в пакете
+     * есть composer.json, в репозитории — .git). Граница обхода — каталог
+     * с .git: выше VCS-корня проект не ищем, чтобы не подхватить чужой
+     * composer.json/.env из родительских каталогов.
+     *
+     * @param string $cwd Стартовый каталог (обычно getcwd()).
+     * @param string $toolRoot Корень инструмента — пропускается при обходе.
+     * @return string|null Найденный корень проекта или null (нужен фолбэк).
+     */
+    private static function discoverProject(string $cwd, string $toolRoot): ?string
+    {
+        $tool = self::normalizePath($toolRoot);
+        $dir = $cwd;
+        while (true) {
+            // Сравниваем каталоги через realpath (симлинки/junction, регистр,
+            // слэши), но возвращаем исходный путь — как его задал вызывающий.
+            if (self::normalizePath($dir) !== $tool) {
+                foreach (['dbitter.php', 'wp-config.php', 'artisan', '.env', 'composer.json'] as $marker) {
+                    if (is_file($dir . '/' . $marker)) {
+                        return $dir;
+                    }
+                }
+                // .git бывает и каталогом, и файлом (worktree/submodule) — оба варианта.
+                if (is_dir($dir . '/.git') || is_file($dir . '/.git')) {
+                    return null;
+                }
+            }
+            $parent = dirname($dir);
+            if ($parent === $dir) {
+                return null; // корень ФС достигнут, маркеров нет
+            }
+            $dir = $parent;
+        }
+    }
+
+    /**
+     * Нормализует путь для сравнения каталогов: realpath разрешает симлинки
+     * и junction (важно для vendor-режима на Windows) и унифицирует слэши.
+     *
+     * @param string $path Абсолютный путь.
+     * @return string Путь с прямыми слэшами, без хвостового слэша.
+     */
+    private static function normalizePath(string $path): string
+    {
+        $real = realpath($path);
+        return rtrim(str_replace('\\', '/', $real !== false ? $real : $path), '/');
+    }
+
+    /**
+     * Загружает профиль конфигурации четырьмя слоями (младший → старший):
+     * config.php и config.local.php из корня инструмента (standalone-профиль),
+     * затем dbitter.php и dbitter.local.php из корня проекта. Каждый слой
+     * накладывается рекурсивно (array_replace_recursive) — локальные
+     * переопределения (пароли, target=wsl и т.п.) не требуют правок основных
+     * файлов и не попадают в git. В composer-архив config.php не входит
+     * (export-ignore), поэтому у потребителя работают только его dbitter*.php.
      *
      * @param string $root Корень инструмента.
+     * @param string $projectRoot Корень проекта.
      * @return array<string,mixed> Слитый профиль (пустой, если файлов нет).
      */
-    private static function loadProfile(string $root): array
+    private static function loadProfile(string $root, string $projectRoot): array
     {
         $profile = [];
-        $main = $root . '/config.php';
-        if (is_file($main)) {
-            $profile = require $main;
-        }
-        $local = $root . '/config.local.php';
-        if (is_file($local)) {
-            $profile = array_replace_recursive($profile, require $local);
+        foreach ([
+            $root . '/config.php',
+            $root . '/config.local.php',
+            $projectRoot . '/dbitter.php',
+            $projectRoot . '/dbitter.local.php',
+        ] as $layer) {
+            if (is_file($layer)) {
+                $profile = array_replace_recursive($profile, require $layer);
+            }
         }
         return $profile;
     }
@@ -75,7 +149,7 @@ final class Config
     private function resolveDb(): array
     {
         // Приоритет выбора экстрактора: CLI > профиль > автодетект по проекту.
-        $conf = $this->cli['conf'] ?? $this->profile['conf'] ?? self::detectConf($this->root);
+        $conf = $this->cli['conf'] ?? $this->profile['conf'] ?? self::detectConf($this->projectRoot);
         $file = $this->root . '/conf/' . $conf . '.php';
         if (!is_file($file)) {
             throw new \RuntimeException("Unknown conf extractor: {$conf}");
@@ -84,7 +158,7 @@ final class Config
         $opts = [
             'path' => $this->cli['config'] ?? $this->profile['conf_path'] ?? null,
             'bootstrap' => (bool) ($this->cli['bootstrap'] ?? false),
-            'root' => dirname($this->root),
+            'root' => $this->projectRoot,
         ];
         $db = $extractor($opts);
 
@@ -120,17 +194,16 @@ final class Config
     }
 
     /**
-     * Автоопределение экстрактора по файлам-маркерам проекта (родитель
-     * каталога DBitter): wp-config.php => WordPress; artisan + .env =>
-     * Laravel; только .env => generic env; иначе const (константы/дефолты).
-     * Порядок важен: wp-config проверяется первым, .env — последним из файлов.
+     * Автоопределение экстрактора по файлам-маркерам в корне проекта:
+     * wp-config.php => WordPress; artisan + .env => Laravel; только .env =>
+     * generic env; иначе const (константы/дефолты). Порядок важен: wp-config
+     * проверяется первым, .env — последним из файлов.
      *
-     * @param string $root Корень инструмента.
+     * @param string $project Корень проекта (найденный discovery или фолбэк).
      * @return string Имя экстрактора: 'wp', 'laravel', 'env' или 'const'.
      */
-    private static function detectConf(string $root): string
+    private static function detectConf(string $project): string
     {
-        $project = dirname($root);
         if (is_file($project . '/wp-config.php')) {
             return 'wp';
         }
@@ -184,6 +257,29 @@ final class Config
     }
 
     /**
+     * Корень проекта: найденный вверх от cwd, либо dirname(root) в
+     * legacy-фолбэке. От него строятся пути экстракторов и дефолтный dump/.
+     *
+     * @return string Абсолютный путь.
+     */
+    public function projectRoot(): string
+    {
+        return $this->projectRoot;
+    }
+
+    /**
+     * Имя проекта для имён дампов и манифестов — basename корня проекта.
+     * Заменяет прежний dbt_project(), который всегда смотрел на родителя
+     * каталога инструмента и врал в vendor-режиме.
+     *
+     * @return string Имя каталога проекта.
+     */
+    public function projectName(): string
+    {
+        return basename($this->projectRoot);
+    }
+
+    /**
      * Транспорт исполнения команд MySQL: CLI 'target' > профиль 'target' >
      * 'local'. Возможные значения: local/wsl/docker/ssh/pdo (в этом проекте
      * обычно wsl — MySQL внутри WSL Ubuntu).
@@ -232,14 +328,16 @@ final class Config
     }
 
     /**
-     * Каталог дампов: опция 'dir' (CLI/профиль) или <root>/dump по
-     * умолчанию; завершающие слэши срезаются для единообразия путей.
+     * Каталог дампов: опция 'dir' (CLI/профиль) или дефолт — <project>/dump,
+     * когда проект найден от cwd, иначе <tool>/dump (legacy-поведение).
+     * Завершающие слэши срезаются для единообразия путей.
      *
      * @return string Путь каталога дампов без хвостового слэша.
      */
     public function dumpDir(): string
     {
-        $dir = $this->opt('dir', $this->root . '/dump');
+        $base = $this->projectFound ? $this->projectRoot : $this->root;
+        $dir = $this->opt('dir', $base . '/dump');
         return rtrim((string) $dir, '/\\');
     }
 

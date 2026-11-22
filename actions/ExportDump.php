@@ -101,7 +101,7 @@ final class ExportDump extends Action
         Fs::ensureDir($dir);
         // Имя базируется на проекте/окружении/виде дампа — по нему потом prune
         // находит «свои» дампы, а манифест называется так же с расширением .json.
-        $base = Dump::baseName(dbt_project(), $cfg->env(), $kind);
+        $base = Dump::baseName($cfg->projectName(), $cfg->env(), $kind);
         $manifestName = $base . '.json';
 
         Log::step("Exporting {$db['name']} (kind={$kind}, compress={$algo}, target={$t->name()})");
@@ -189,7 +189,7 @@ final class ExportDump extends Action
         $manifest = [
             'tool' => 'DBitter',
             'created' => date('c'),
-            'project' => dbt_project(),
+            'project' => $cfg->projectName(),
             'env' => $cfg->env(),
             'conf' => $db['source'] ?? null,
             'target' => $t->name(),
