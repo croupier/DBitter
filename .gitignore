@@ -1,0 +1,14 @@
+/config.local.php
+/dump/*
+!/dump/.htaccess
+*.log
+
+# PHPUnit / Composer test tooling
+/vendor/
+/.phpunit.cache/
+/.phpunit.result.cache
+/coverage/
+
+# The WP root .gitignore ignores composer.lock globally; re-include ours so the
+# test toolchain stays reproducible when this folder is committed.
+!composer.lock
