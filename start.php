@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Точка входа DBitter — автономного CLI-инструмента миграции MySQL-баз.
- * Запуск: `php start.php <action> [--options]`; без действия открывается
- * интерактивное меню. Файл разбирает argv (dbt_parse_argv), настраивает
- * логирование, собирает Config (приоритет: CLI > config.local.php >
- * config.php > дефолты транспорта) и диспетчеризует действие в класс
- * из карты DBT_ACTIONS. Код возврата процесса — код действия (0 = успех).
+ * DBitter entry point — a standalone CLI tool for MySQL database migration.
+ * Run: `php start.php <action> [--options]`; with no action, the interactive
+ * menu opens. The file parses argv (dbt_parse_argv), sets up logging, builds
+ * Config (priority: CLI > config.local.php > config.php > transport defaults)
+ * and dispatches the action to a class from the DBT_ACTIONS map. The process
+ * return code is the action's code (0 = success).
  */
 
 declare(strict_types=1);
@@ -28,9 +28,9 @@ use DbTools\Lib\Log;
 use DbTools\Lib\Menu;
 
 /**
- * Реестр действий: имя в CLI => класс-обработчик (реализация Action).
- * Используется и диспетчером, и справкой, и интерактивным меню —
- * добавление нового действия требует лишь одной строки здесь.
+ * Action registry: CLI name => handler class (an Action implementation).
+ * Used by the dispatcher, the help text, and the interactive menu — adding
+ * a new action requires just one line here.
  */
 const DBT_ACTIONS = [
     'doctor' => Doctor::class,
@@ -43,14 +43,14 @@ const DBT_ACTIONS = [
 ];
 
 /**
- * Разбирает argv в ассоциативный массив CLI-опций.
+ * Parses argv into an associative array of CLI options.
  *
- * Поддерживает: `--key=value`, `--key value`, голые bool-флаги (`--yes`),
- * повторяемые опции (`--extra`, `--ignore-table` — накапливаются в массив)
- * и позиционный аргумент-действие (первый аргумент без `--` → `_action`).
+ * Supports: `--key=value`, `--key value`, bare bool flags (`--yes`),
+ * repeatable options (`--extra`, `--ignore-table` — accumulated into an array)
+ * and the positional action argument (the first argument without `--` → `_action`).
  *
- * @param array $argv сырой argv, включая имя скрипта нулевым элементом
- * @return array<string,mixed> опции + ключ '_action' (string|null)
+ * @param array $argv raw argv, including the script name as the zeroth element
+ * @return array<string,mixed> options + the '_action' key (string|null)
  */
 function dbt_parse_argv(array $argv): array
 {
@@ -105,8 +105,9 @@ function dbt_parse_argv(array $argv): array
 }
 
 /**
- * Печатает справку: список действий (заголовки берутся у самих классов,
- * чтобы справка не расходилась с реализацией) и обзор глобальных опций.
+ * Prints the help text: the action list (headings are taken from the classes
+ * themselves so the help never drifts from the implementation) and an overview
+ * of the global options.
  */
 function dbt_help(): void
 {
@@ -133,12 +134,12 @@ function dbt_help(): void
 }
 
 /**
- * Интерактивный режим (действие не передано в CLI): спрашивает действие
- * и недостающие параметры через Menu. Уже заданные в CLI ключи НЕ
- * переспрашиваются — приоритет CLI над интерактивным вводом сохраняется.
+ * Interactive mode (no action passed on the CLI): asks for the action
+ * and the missing parameters via Menu. Keys already set on the CLI are
+ * NOT re-prompted — the CLI-over-interactive-input priority is preserved.
  *
- * @param array<string,mixed> $cli результат dbt_parse_argv
- * @return array<string,mixed> $cli, дополненный ответами пользователя
+ * @param array<string,mixed> $cli result of dbt_parse_argv
+ * @return array<string,mixed> $cli, augmented with the user's answers
  */
 function dbt_interactive(array $cli): array
 {

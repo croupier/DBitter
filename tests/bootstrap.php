@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Бутстрап PHPUnit (подключается из phpunit.xml.dist).
- * Готовит окружение для юнит- и интеграционных тестов: автозагрузку
- * PHPUnit и DbTools\Tests\*, а также полный бутстрап самого инструмента,
- * чтобы тесты видели те же классы и хелперы, что и боевой start.php.
+ * PHPUnit bootstrap (loaded from phpunit.xml.dist).
+ * Prepares the environment for unit and integration tests: autoloading of
+ * PHPUnit and DbTools\Tests\*, plus the full bootstrap of the tool itself,
+ * so tests see the same classes and helpers as the production start.php.
  */
 
 declare(strict_types=1);

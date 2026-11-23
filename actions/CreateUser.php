@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие create-user: создание пользователя MySQL и выдача прав на БД.
+ * create-user action: creating a MySQL user and granting privileges on a database.
  *
- * Запуск: php start.php create-user [--name=база] [--user-host=localhost]
- * [--grant=ALL] [--dry-run]. Требует админского доступа. Выполняет
- * CREATE USER IF NOT EXISTS + GRANT + FLUSH PRIVILEGES; пароль берётся
- * из конфигурации и маскируется в логах/dry-run. Идемпотентно для
- * существующего аккаунта (пароль не меняется).
+ * Run: php start.php create-user [--name=database] [--user-host=localhost]
+ * [--grant=ALL] [--dry-run]. Requires admin access. Executes
+ * CREATE USER IF NOT EXISTS + GRANT + FLUSH PRIVILEGES; the password is taken
+ * from the configuration and masked in logs/dry-run. Idempotent for an
+ * existing account (the password is not changed).
  */
 
 use DbTools\Lib\Config;
@@ -19,15 +19,15 @@ use DbTools\Lib\Log;
 use DbTools\Lib\Sql;
 
 /**
- * Административное действие: создаёт аккаунт user@host и грантует ему
- * привилегии на указанную базу через execSql с админскими реквизитами.
+ * Administrative action: creates the user@host account and grants it
+ * privileges on the given database via execSql with admin credentials.
  */
 final class CreateUser extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'create-user'
+     * @return string always 'create-user'
      */
     public function name(): string
     {
@@ -35,9 +35,9 @@ final class CreateUser extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -45,9 +45,9 @@ final class CreateUser extends Action
     }
 
     /**
-     * CLI-опции действия для справки/меню.
+     * CLI options of the action for help/menu.
      *
-     * @return array<string,string> имя опции => описание
+     * @return array<string,string> option name => description
      */
     public function options(): array
     {
@@ -58,16 +58,16 @@ final class CreateUser extends Action
     }
 
     /**
-     * Создаёт пользователя и выдаёт ему права на базу данных.
-     * Требует админских прав (execSql по умолчанию использует админа).
+     * Creates the user and grants privileges on the database.
+     * Requires admin rights (execSql uses the admin by default).
      *
-     * Побочные эффекты: создаёт аккаунт и гранты на сервере, выполняет
-     * FLUSH PRIVILEGES; пишет в лог (пароль замаскирован). В --dry-run
-     * только печатает стейтменты, ничего не выполняя.
+     * Side effects: creates the account and grants on the server, runs
+     * FLUSH PRIVILEGES; writes to the log (password masked). In --dry-run
+     * it only prints the statements without executing anything.
      *
-     * @param Config $cfg  конфигурация (user/pass БД, админские реквизиты, секреты)
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int 0 — успех/отмена dry-run, 1 — небезопасный grant или ошибка SQL
+     * @param Config $cfg  configuration (database user/pass, admin credentials, secrets)
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int 0 — success/dry-run cancellation, 1 — unsafe grant or SQL error
      */
     public function run(Config $cfg, array $opts): int
     {

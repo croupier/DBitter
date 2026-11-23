@@ -1,16 +1,16 @@
 <?php
 
 /**
- * Профиль ИНСТРУМЕНТА DBitter (нижний слой) — коммитится в git, секретов
- * здесь быть НЕ должно. Это базовый слой настроек: экстрактор конфига
- * проекта, транспорт до MySQL и параметры дампов. Любое значение
- * переопределяется в config.local.php (gitignored, для паролей и локальных
- * особенностей), проектным профилем dbitter.php/dbitter.local.php в корне
- * проекта (старшие слои) или CLI-флагами. Приоритет: CLI > dbitter.local.php
- * > dbitter.php > config.local.php > config.php > дефолты транспорта.
- * Слияние профилей рекурсивное (array_replace_recursive в Config::loadProfile).
- * В composer-архив этот файл не попадает (export-ignore в .gitattributes):
- * потребители пакета настраивают инструмент своим dbitter.php в проекте.
+ * DBitter TOOL profile (lowest layer) — committed to git, secrets must NOT
+ * live here. This is the base settings layer: the project config extractor,
+ * the transport to MySQL and the dump parameters. Any value is overridden in
+ * config.local.php (gitignored, for passwords and local quirks), by the
+ * project profile dbitter.php/dbitter.local.php in the project root (higher
+ * layers) or by CLI flags. Precedence: CLI > dbitter.local.php > dbitter.php
+ * > config.local.php > config.php > transport defaults. Profile merging is
+ * recursive (array_replace_recursive in Config::loadProfile). This file is
+ * excluded from the composer archive (export-ignore in .gitattributes):
+ * package consumers configure the tool with their own dbitter.php in the project.
  */
 
 declare(strict_types=1);

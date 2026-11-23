@@ -5,23 +5,23 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Утилиты запуска внешних команд: безопасное экранирование аргументов для
- * bash (wsl/ssh/docker), маскировка секретов в отображаемых командных
- * строках, корректное слияние env для proc_open и синхронный запуск коротких
- * команд с захватом вывода (Command::capture). Для потоковой передачи
- * больших дампов используется Process, результат обеих — Result.
+ * External command execution utilities: safe argument escaping for
+ * bash (wsl/ssh/docker), masking of secrets in displayed command
+ * lines, correct env merging for proc_open and synchronous execution of short
+ * commands with output capture (Command::capture). For streaming large
+ * dumps Process is used; the result of both is a Result.
  */
 final class Command
 {
     /**
-     * Экранирует значение для bash одинарными кавычками: внутри '...'
-     * bash не интерпретирует ничего, кроме самой одинарной кавычки,
-     * поэтому каждая ' заменяется на последовательность '\'' (закрыть
-     * кавычку, экранированная кавычка, открыть заново). Защищает пароли
-     * и пути с пробелами/спецсимволами при передаче через `bash -c`.
+     * Escapes a value for bash using single quotes: inside '...'
+     * bash interprets nothing except the single quote itself,
+     * so each ' is replaced with the sequence '\'' (close the
+     * quote, escaped quote, reopen it). Protects passwords
+     * and paths with spaces/special characters when passed via `bash -c`.
      *
-     * @param string $value Произвольное значение (пароль, путь, аргумент).
-     * @return string Значение, безопасно вставляемое в bash-строку.
+     * @param string $value Arbitrary value (password, path, argument).
+     * @return string Value that is safe to embed in a bash command line.
      */
     public static function bashQuote(string $value): string
     {
@@ -29,15 +29,15 @@ final class Command
     }
 
     /**
-     * Сериализует argv (плюс экспорты переменных окружения) в одну
-     * bash-безопасную командную строку. Используется внутри `bash -c`
-     * для транспортов wsl/ssh/docker: каждый аргумент quoting-ается
-     * отдельно, поэтому строка переживает несколько уровней шеллов.
+     * Serializes argv (plus environment variable exports) into a single
+     * bash-safe command line. Used inside `bash -c`
+     * for the wsl/ssh/docker transports: each argument is quoted
+     * separately, so the line survives several shell levels.
      *
-     * @param list<string> $argv Аргументы команды (программа и параметры).
-     * @param array<string,string> $env Переменные вида KEY=VALUE, которые
-     *        ставятся перед командой (так MYSQL_PWD не попадает в argv).
-     * @return string Готовая строка для `bash -c '...'`.
+     * @param list<string> $argv Command arguments (program and parameters).
+     * @param array<string,string> $env Variables of the form KEY=VALUE that
+     *        are placed before the command (so that MYSQL_PWD does not end up in argv).
+     * @return string A ready-to-use line for `bash -c '...'`.
      */
     public static function bashString(array $argv, array $env = []): string
     {
@@ -54,15 +54,15 @@ final class Command
     }
 
     /**
-     * Маскирует секреты в командной строке перед выводом в лог/консоль,
-     * чтобы пароли не утекали в stdout и лог-файл. Пароль скрывается в
-     * формах: quoted-литерал 'пароль', MYSQL_PWD='...', --password=...,
-     * -p...; для секретов длиной >= 4 символов дополнительно заменяется
-     * голое вхождение подстроки.
+     * Masks secrets in a command line before it is written to the log/console,
+     * so that passwords do not leak into stdout or the log file. The password
+     * is hidden in these forms: quoted literal 'password', MYSQL_PWD='...',
+     * --password=..., -p...; for secrets of 4 characters or more, a bare
+     * substring occurrence is additionally replaced.
      *
-     * @param string $command Командная строка для отображения.
-     * @param list<string> $secrets Список секретов (пароли БД и админа).
-     * @return string Строка с заменёнными на *** секретами.
+     * @param string $command Command line to be displayed.
+     * @param list<string> $secrets List of secrets (database passwords and admin password).
+     * @return string Line with secrets replaced by ***.
      */
     public static function mask(string $command, array $secrets): string
     {
@@ -88,16 +88,16 @@ final class Command
     }
 
     /**
-     * Готовит env для proc_open. Важно: если передать в proc_open массив
-     * окружения, он ПОЛНОСТЬЮ ЗАМЕНЯЕТ окружение ребёнка, а не дополняет
-     * его. На Windows это лишит дочерний процесс PATH/SystemRoot и т.п.,
-     * из-за чего внешние бинарники (и сам PHP) перестают работать. Поэтому
-     * переопределения сливаются поверх унаследованного getenv(): вызывающий
-     * может добавить MYSQL_PWD, не затирая остальное окружение.
+     * Prepares the env for proc_open. Important: if you pass an environment
+     * array to proc_open, it COMPLETELY REPLACES the child's environment
+     * instead of augmenting it. On Windows this would deprive the child process of PATH/SystemRoot
+     * and similar, which makes external binaries (and PHP itself) stop working. That is why
+     * overrides are merged on top of the inherited getenv(): the caller
+     * can add MYSQL_PWD without wiping out the rest of the environment.
      *
-     * @param array<string,string> $env Переопределения/добавления к окружению.
-     * @return array<string,string>|null null при пустом списке — proc_open
-     *         тогда наследует окружение родителя как есть.
+     * @param array<string,string> $env Overrides/additions to the environment.
+     * @return array<string,string>|null null when the list is empty — proc_open
+     *         then inherits the parent's environment as is.
      */
     public static function mergeEnv(array $env): ?array
     {
@@ -108,12 +108,12 @@ final class Command
     }
 
     /**
-     * Приводит команду к строке для отображения (логи, Result::$command).
-     * Массив аргументов просто склеивается пробелами — это диагностический
-     * текст, а не исполняемая строка; секреты маскируются отдельно (mask).
+     * Renders a command as a string for display (logs, Result::$command).
+     * An argument array is simply joined with spaces — this is diagnostic
+     * text, not an executable line; secrets are masked separately (mask).
      *
-     * @param string|list<string> $cmd Команда в любом из форматов proc_open.
-     * @return string Человекочитаемое представление команды.
+     * @param string|list<string> $cmd Command in any of the proc_open formats.
+     * @return string Human-readable representation of the command.
      */
     public static function display(string|array $cmd): string
     {
@@ -121,18 +121,18 @@ final class Command
     }
 
     /**
-     * Синхронно выполняет короткую команду до завершения, захватывая вывод
-     * во временные файлы (а не в pipe): это исключает deadlock на заполнении
-     * буфера канала, когда ребёнок пишет много, а родитель ещё не читает.
-     * stdin при необходимости заполняется из строки. Для больших потоков
-     * (дампы) используется Process, а не этот метод.
+     * Runs a short command synchronously until it completes, capturing the output
+     * into temp files (rather than a pipe): this rules out a deadlock on channel
+     * buffer exhaustion when the child writes a lot while the parent has not
+     * started reading yet. stdin, when needed, is filled from a string.
+     * For large streams (dumps) Process is used, not this method.
      *
-     * Побочные эффекты: создаёт и удаляет два временных файла в Fs::tempDir().
+     * Side effects: creates and deletes two temporary files in Fs::tempDir().
      *
-     * @param string|list<string> $cmd Команда proc_open (строка => через шелл, массив => без шелла).
-     * @param array<string,string> $env Добавления к окружению (см. mergeEnv).
-     * @param string|null $stdin Данные для stdin ребёнка; null — пустой stdin.
-     * @return Result Код возврата, stdout/stderr, текст команды и время выполнения.
+     * @param string|list<string> $cmd proc_open command (string => via shell, array => without shell).
+     * @param array<string,string> $env Additions to the environment (see mergeEnv).
+     * @param string|null $stdin Data for the child's stdin; null — empty stdin.
+     * @return Result Exit code, stdout/stderr, command text and execution time.
      */
     public static function capture(string|array $cmd, array $env = [], ?string $stdin = null): Result
     {

@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты DbTools\Lib\Command: экранирование аргументов для bash,
- * сборка bash-строки с env-префиксом, маскировка секретов в логах и
- * слияние окружения для proc_open. Без запуска внешних команд и БД.
- * Закрывает регрессии маскировки коротких паролей и потери PATH при
- * передаче env-массива в proc_open (Windows).
+ * Unit tests for DbTools\Lib\Command: escaping arguments for bash,
+ * building bash strings with an env prefix, masking secrets in logs, and
+ * merging the environment for proc_open. No external commands or DBs are
+ * run. Covers regressions for short-password masking and PATH loss when
+ * passing an env array to proc_open (Windows).
  */
 
 declare(strict_types=1);
@@ -16,16 +16,16 @@ use DbTools\Lib\Command;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверки сериализации/маскировки команд — критично для безопасности:
- * пароли не должны светиться в логах, а спецсимволы — ломать bash-строку.
+ * Checks for command serialization/masking — critical for security:
+ * passwords must not leak into logs, and special characters must not break the bash string.
  */
 final class CommandTest extends TestCase
 {
     /**
-     * bashQuote оборачивает значение в одинарные кавычки; внутренняя
-     * одинарная кавычка экранируется классическим bash-приёмом: закрыть
-     * кавычку, вставить экранированную кавычку, открыть заново —
-     * a'b превращается в 'a'\''b (конкатенация трёх кусков в bash).
+     * bashQuote wraps the value in single quotes; an inner single quote is
+     * escaped with the classic bash trick: close the quote, insert an
+     * escaped quote, reopen — a'b becomes 'a'\''b (concatenation of three
+     * pieces in bash).
      */
     public function testBashQuoteEscapesSingleQuotes(): void
     {
@@ -34,9 +34,9 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * bashString собирает единую bash-строку: сначала env-присваивания
-     * (MYSQL_PWD='...'), затем каждый аргумент в отдельных кавычках.
-     * Так пароль доезжает до цели внутри `bash -c`, а не через argv хоста.
+     * bashString assembles a single bash string: first the env assignments
+     * (MYSQL_PWD='...'), then each argument in its own quotes. This way the
+     * password reaches the target inside `bash -c` rather than via the host's argv.
      */
     public function testBashStringFoldsEnvAndQuotesArgs(): void
     {
@@ -45,8 +45,8 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * mask() всегда прячет форму MYSQL_PWD='...' — даже без списка секретов:
-     * это основной канал передачи пароля во всех транспортах.
+     * mask() always hides the MYSQL_PWD='...' form — even without a secret
+     * list: it is the primary password delivery channel in all transports.
      */
     public function testMaskHidesMysqlPwdEnv(): void
     {
@@ -56,8 +56,8 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * Длинный секрет (>= 4 символов) маскируется и как «голая» подстрока —
-     * например, в тексте сообщения об ошибке соединения.
+     * A long secret (>= 4 characters) is also masked as a "bare" substring —
+     * for example, in the text of a connection error message.
      */
     public function testMaskLongSecretAsSubstring(): void
     {
@@ -67,10 +67,10 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * Регрессия: односимвольный пароль нельзя маскировать как подстроку —
-     * раньше буква 'a' из пароля превращала "bash" в "b***sh" и портила
-     * весь вывод. Короткие секреты прячутся только в кавычках/делимитированных
-     * формах ('a', --password=a, -pa), но не внутри обычных слов.
+     * Regression: a one-character password must not be masked as a substring —
+     * previously the 'a' from the password turned "bash" into "b***sh" and
+     * ruined all output. Short secrets are hidden only in quoted/delimited
+     * forms ('a', --password=a, -pa), but not inside regular words.
      */
     public function testMaskShortSecretOnlyInDelimitedForms(): void
     {
@@ -81,8 +81,8 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * Пустой override окружения → null: proc_open наследует окружение
-     * родителя как есть (без массива вообще).
+     * An empty environment override → null: proc_open inherits the parent's
+     * environment as is (no array passed at all).
      */
     public function testMergeEnvEmptyReturnsNull(): void
     {
@@ -90,10 +90,10 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * Регрессия Windows: proc_open с env-массивом ПОЛНОСТЬЮ ЗАМЕНЯЕТ
-     * окружение ребёнка, а не дополняет. Без слияния терялись PATH/SystemRoot
-     * и внешние бинарники переставали запускаться. mergeEnv обязан добавить
-     * MYSQL_PWD поверх унаследованного окружения, сохранив PATH.
+     * Windows regression: proc_open with an env array COMPLETELY REPLACES the
+     * child environment instead of augmenting it. Without merging, PATH/SystemRoot
+     * were lost and external binaries stopped launching. mergeEnv must add
+     * MYSQL_PWD on top of the inherited environment, preserving PATH.
      */
     public function testMergeEnvInheritsParentEnvironment(): void
     {
@@ -107,8 +107,8 @@ final class CommandTest extends TestCase
     }
 
     /**
-     * display() приводит команду к строке для логов: массив склеивается
-     * пробелами, строка возвращается без изменений.
+     * display() reduces a command to a string for logging: an array is joined
+     * with spaces, a string is returned unchanged.
      */
     public function testDisplay(): void
     {

@@ -1,12 +1,13 @@
 <?php
 
 /**
- * Юнит-тесты DbTools\Lib\Dump: расширения/алгоритмы сжатия, разбиение
- * файла на части (splitFile) и склейку (joinFiles), sha256, манифесты
- * и latest.json, ротацию дампов (prune) и уникальность имён.
- * Закрывает регрессии split-фикса (файл меньше блока → один архив без
- * .part001; пустой хвостовой part) и prune-фикса (entries — массивы,
- * раньше было Array-to-string и файлы дампов не удалялись). Без БД.
+ * Unit tests for DbTools\Lib\Dump: compression extensions/algorithms, splitting
+ * a file into parts (splitFile) and joining them back (joinFiles), sha256,
+ * manifests and latest.json, dump rotation (prune), and name uniqueness.
+ * Covers the split-fix regressions (file smaller than a block → a single archive
+ * without .part001; empty trailing part) and the prune-fix regression (entries
+ * are arrays — previously an Array-to-string error occurred and dump files were
+ * never deleted). No DB involved.
  */
 
 declare(strict_types=1);
@@ -17,22 +18,22 @@ use DbTools\Lib\Dump;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Все файловые операции выполняются в одноразовом временном каталоге,
- * который создаётся в setUp и полностью убирается в tearDown.
+ * All file operations run in a disposable temporary directory
+ * created in setUp and fully removed in tearDown.
  */
 final class DumpTest extends TestCase
 {
-    /** Временный каталог для файлов конкретного теста. */
+    /** Temporary directory for the individual test's files. */
     private string $dir;
 
-    /** Создаёт уникальный временный каталог (случайный hex — защита от коллизий). */
+    /** Creates a unique temporary directory (random hex — collision protection). */
     protected function setUp(): void
     {
         $this->dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dbt_dump_test_' . bin2hex(random_bytes(4));
         mkdir($this->dir, 0775, true);
     }
 
-    /** Удаляет все файлы теста и сам каталог — следов не остаётся. */
+    /** Deletes all of the test's files and the directory itself — no traces left. */
     protected function tearDown(): void
     {
         foreach (glob($this->dir . DIRECTORY_SEPARATOR . '*') ?: [] as $f) {
@@ -42,9 +43,9 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Хелпер: создаёт файл с заданным содержимым в каталоге теста.
+     * Helper: creates a file with the given content in the test directory.
      *
-     * @return string полный путь к созданному файлу
+     * @return string full path to the created file
      */
     private function file(string $name, string $content): string
     {
@@ -54,9 +55,9 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * extension() и algoFromFile() — взаимно обратные: gzip ↔ .sql.gz,
-     * zstd ↔ .sql.zst, none ↔ .sql. Важно для импорта: алгоритм
-     * распаковки определяется по имени файла из манифеста.
+     * extension() and algoFromFile() are mutual inverses: gzip ↔ .sql.gz,
+     * zstd ↔ .sql.zst, none ↔ .sql. Important for import: the decompression
+     * algorithm is determined from the file name in the manifest.
      */
     public function testExtensionAndAlgoRoundtrip(): void
     {
@@ -69,10 +70,10 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Регрессия split <= блока: файл, целиком помещающийся в блок,
-     * должен остаться ОДНИМ архивом с исходным именем (без суффикса
-     * .partNNN) и не быть удалённым. Раньше создавался лишний .part001,
-     * а оригинал исчезал — манифест и импорт ломались.
+     * Split <= block regression: a file that fits entirely within one block
+     * must remain a SINGLE archive with its original name (no .partNNN suffix)
+     * and must not be deleted. Previously a redundant .part001 was created and
+     * the original vanished — breaking the manifest and the import.
      */
     public function testSplitSmallerThanBlockKeepsSingleFile(): void
     {
@@ -85,8 +86,8 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Граничный случай: размер файла РАВЕН блоку — тоже один файл,
-     * разбиение не нужно (проверка строгой границы size <= partBytes).
+     * Boundary case: file size EQUALS the block — still a single file,
+     * no splitting needed (verifies the strict boundary size <= partBytes).
      */
     public function testSplitExactlyOneBlockIsSingle(): void
     {
@@ -97,8 +98,8 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Граничный случай: пустой (0 байт) файл не должен порождать
-     * 0-байтный .partNNN — возвращается сам (пустой) оригинал.
+     * Boundary case: an empty (0-byte) file must not spawn a 0-byte .partNNN —
+     * the (empty) original itself is returned.
      */
     public function testSplitZeroByteFileProducesNoParts(): void
     {
@@ -109,10 +110,10 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Регрессия пустого хвостового part: при размере, кратном блоку,
-     * последний цикл чтения даёт 0 байт — такой part обязан удаляться,
-     * а не попадать в манифест. Плюс полный round-trip: split → join
-     * должен побайтно восстановить исходное (случайное) содержимое.
+     * Empty trailing part regression: when the size is an exact multiple of the
+     * block, the final read loop yields 0 bytes — such a part must be deleted
+     * instead of ending up in the manifest. Plus a full round-trip: split → join
+     * must restore the original (random) content byte for byte.
      */
     public function testSplitAndJoinRoundtrip(): void
     {
@@ -130,8 +131,8 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * sha256() считает контрольную сумму файла — эталонный вектор для
-     * строки 'abc'. Суммы из манифеста проверяются при импорте.
+     * sha256() computes a file checksum — the reference vector for the
+     * string 'abc'. Manifest checksums are verified during import.
      */
     public function testSha256(): void
     {
@@ -143,9 +144,9 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Round-trip манифеста: write → read возвращает те же данные;
-     * writeLatest/readLatest корректно хранят указатель на последний
-     * манифест (latest.json), по которому импорт находит свежий дамп.
+     * Manifest round-trip: write → read returns the same data;
+     * writeLatest/readLatest correctly store the pointer to the latest
+     * manifest (latest.json), which the import uses to find the freshest dump.
      */
     public function testManifestAndLatestRoundtrip(): void
     {
@@ -158,11 +159,11 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * Регрессия prune: entries в манифесте — МАССИВЫ ['file'=>..., ...].
-     * Раньше entry приводился к строке напрямую (Array-to-string conversion),
-     * имя файла получалось мусорным и сами дампы НЕ удалялись — копились
-     * вечно. Теперь prune обязан удалить и файлы данных, и манифесты
-     * старых дампов, оставив keep=1 самых свежих (порядок по mtime).
+     * Prune regression: entries in the manifest are ARRAYS ['file'=>..., ...].
+     * Previously an entry was cast to a string directly (Array-to-string conversion),
+     * producing a garbage file name, and the dumps themselves were NOT deleted —
+     * piling up forever. Now prune must delete both the data files and the manifests
+     * of old dumps, keeping the keep=1 freshest ones (ordered by mtime).
      */
     public function testPruneKeepsNNewest(): void
     {
@@ -184,9 +185,9 @@ final class DumpTest extends TestCase
     }
 
     /**
-     * baseName() уникален даже при двух вызовах в одну секунду
-     * (иначе два экспорта подряд перезаписали бы друг друга) и содержит
-     * читаемый префикс проект__транспорт__вид__.
+     * baseName() is unique even across two calls within the same second
+     * (otherwise two consecutive exports would overwrite each other) and contains
+     * a readable project__transport__kind__ prefix.
      */
     public function testBaseNameIsUniquePerCall(): void
     {

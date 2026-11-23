@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие import: потоковая подача дампа в stdin клиента mysql.
+ * import action: streaming a dump into the mysql client's stdin.
  *
- * Запуск: php start.php import [--file=дамп|манифест|часть] [--database=имя]
- * [--fk-checks=yes|no] [--force]. Без --file берётся свежий дамп по latest.json.
- * Проверяет sha256 по манифесту (если не задан --force), склеивает части,
- * распаковывает gzip/zstd и отключает FOREIGN_KEY_CHECKS на время импорта.
+ * Run: php start.php import [--file=dump|manifest|part] [--database=name]
+ * [--fk-checks=yes|no] [--force]. Without --file the latest dump is taken via latest.json.
+ * Verifies sha256 against the manifest (unless --force is given), joins the parts,
+ * decompresses gzip/zstd and disables FOREIGN_KEY_CHECKS for the duration of the import.
  */
 
 use DbTools\Lib\Command;
@@ -22,15 +22,15 @@ use DbTools\Lib\Menu;
 use DbTools\Lib\Process;
 
 /**
- * Импорт дампа в MySQL: находит файл (или манифест/части), верифицирует
- * контрольные суммы и потоком пишет SQL в stdin mysql через транспорт.
+ * Dump import into MySQL: locates the file (or manifest/parts), verifies the
+ * checksums and streams the SQL into the mysql stdin through the transport.
  */
 final class ImportDump extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'import'
+     * @return string always 'import'
      */
     public function name(): string
     {
@@ -38,9 +38,9 @@ final class ImportDump extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -48,9 +48,9 @@ final class ImportDump extends Action
     }
 
     /**
-     * CLI-опции импорта для справки/меню.
+     * Import CLI options for help/menu.
      *
-     * @return array<string,string> имя опции => описание
+     * @return array<string,string> option name => description
      */
     public function options(): array
     {
@@ -63,17 +63,17 @@ final class ImportDump extends Action
     }
 
     /**
-     * Основной сценарий импорта: разрешение файла дампа, проверка sha256,
-     * подготовка (распаковка zstd), потоковая подача SQL в mysql stdin
-     * с обрамлением SET FOREIGN_KEY_CHECKS/UNIQUE_CHECKS.
+     * Main import scenario: resolving the dump file, sha256 verification,
+     * preparation (zstd decompression), streaming the SQL into the mysql stdin
+     * wrapped in SET FOREIGN_KEY_CHECKS/UNIQUE_CHECKS statements.
      *
-     * Побочные эффекты: изменяет целевую БД (выполняет SQL дампа), создаёт
-     * временные файлы (склейка частей, распаковка zstd) и удаляет их в конце;
-     * пишет в лог. При обрыве пайпа показывает ошибку сервера, а не «успех».
+     * Side effects: modifies the target database (runs the dump's SQL), creates
+     * temporary files (part joining, zstd decompression) and deletes them at the end;
+     * writes to the log. On a broken pipe it shows the server error instead of "success".
      *
-     * @param Config $cfg  конфигурация проекта/окружения и опции импорта
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int 0 — успех (или dry-run), 1 — ошибка файла/суммы/импорта
+     * @param Config $cfg  project/environment configuration and import options
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int 0 — success (or dry-run), 1 — file/checksum/import error
      */
     public function run(Config $cfg, array $opts): int
     {
@@ -204,18 +204,18 @@ final class ImportDump extends Action
     }
 
     /**
-     * Находит дамп для импорта: явный --file (абсолютный или относительно
-     * dumpDir), манифест .json или обычный файл; без --file — свежий дамп
-     * через latest.json. Пополняет $cleanup временными файлами склейки.
+     * Locates the dump to import: an explicit --file (absolute or relative to
+     * dumpDir), a .json manifest or a plain file; without --file — the latest dump
+     * via latest.json. Appends temporary join files to $cleanup.
      *
-     * Побочные эффекты: может создать временный файл склейки частей
-     * (через fromManifest); читает latest.json и манифест с диска.
+     * Side effects: may create a temporary part-joining file
+     * (via fromManifest); reads latest.json and the manifest from disk.
      *
-     * @param Config       $cfg     конфигурация с опцией file
-     * @param string       $dir     каталог дампов
-     * @param list<string> $cleanup список временных файлов для последующей уборки (по ссылке)
-     * @return array{0:string,1:string,2:?array} [путь к файлу, алгоритм сжатия, манифест|null]
-     * @throws \RuntimeException если файл не найден, latest.json отсутствует или манифест пуст
+     * @param Config       $cfg     configuration with the file option
+     * @param string       $dir     dump directory
+     * @param list<string> $cleanup list of temporary files for later cleanup (by reference)
+     * @return array{0:string,1:string,2:?array} [file path, compression algorithm, manifest|null]
+     * @throws \RuntimeException when the file is not found, latest.json is missing or the manifest lists no files
      */
     private function resolveDump(Config $cfg, string $dir, array &$cleanup): array
     {
@@ -247,18 +247,18 @@ final class ImportDump extends Action
     }
 
     /**
-     * Разворачивает манифест в конкретный файл для чтения: один файл — как есть,
-     * несколько частей — склеивает во временный файл (порядок частей сохраняется,
-     * т.к. split резал единый сжатый поток и склейка восстанавливает его побайтово).
+     * Resolves a manifest into a concrete file to read: a single file is used as is,
+     * several parts are joined into a temporary file (part order is preserved
+     * because split cut a single compressed stream and joining restores it byte-for-byte).
      *
-     * Побочные эффекты: при нескольких частях создаёт временный файл во
-     * Fs::tempDir() и добавляет его путь в $cleanup для удаления после импорта.
+     * Side effects: with multiple parts it creates a temporary file in
+     * Fs::tempDir() and adds its path to $cleanup for deletion after the import.
      *
-     * @param array        $manifest разобранный JSON-манифест дампа
-     * @param string       $dir      каталог дампов (где лежат части)
-     * @param list<string> $cleanup  список временных файлов для уборки (по ссылке)
-     * @return array{0:string,1:string,2:array} [путь к файлу, алгоритм сжатия, манифест]
-     * @throws \RuntimeException если манифест не содержит файлов или файл отсутствует на диске
+     * @param array        $manifest parsed dump JSON manifest
+     * @param string       $dir      dump directory (where the parts live)
+     * @param list<string> $cleanup  list of temporary files for cleanup (by reference)
+     * @return array{0:string,1:string,2:array} [file path, compression algorithm, manifest]
+     * @throws \RuntimeException when the manifest lists no files or a file is missing on disk
      */
     private function fromManifest(array $manifest, string $dir, array &$cleanup): array
     {

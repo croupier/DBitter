@@ -9,22 +9,22 @@ use DbTools\Lib\Config;
 use DbTools\Lib\Fs;
 
 /**
- * Транспорт «wsl»: mysql/mysqldump выполняются внутри дистрибутива WSL
- * (по умолчанию Ubuntu) через wsl.exe. На Windows команда доставляется
- * bash-скриптом во временном файле, а не строкой `bash -c` — это обходит
- * проблемы экранирования wsl.exe/cmd.exe и сохраняет stdin и код возврата.
+ * "wsl" transport: mysql/mysqldump run inside a WSL distro
+ * (Ubuntu by default) via wsl.exe. On Windows the command is delivered
+ * as a bash script in a temp file rather than a `bash -c` string — this works
+ * around wsl.exe/cmd.exe escaping problems and preserves stdin and the exit code.
  */
 final class Wsl extends Transport
 {
-    /** @var string Путь к временному bash-скрипту с текущей командой (уникален для процесса). */
+    /** @var string Path to the temporary bash script holding the current command (unique per process). */
     private string $scriptFile;
 
     /**
-     * Готовит путь временного скрипта и регистрирует его удаление при
-     * завершении PHP: в скрипт попадает MYSQL_PWD, поэтому файл не должен
-     * оставаться на диске после работы (даже при фатальной ошибке).
+     * Prepares the temp script path and registers its removal on PHP
+     * shutdown: the script contains MYSQL_PWD, so the file must not
+     * stay on disk after the run (even on a fatal error).
      *
-     * @param Config $cfg Конфигурация DBitter.
+     * @param Config $cfg DBitter configuration.
      */
     public function __construct(Config $cfg)
     {
@@ -38,11 +38,11 @@ final class Wsl extends Transport
     }
 
     /**
-     * Находит исполняемый файл wsl: сначала wsl.exe, затем wsl в PATH;
-     * если поиск не удался — возвращает 'wsl.exe' в надежде, что система
-     * сама разрешит имя при запуске.
+     * Finds the wsl executable: first wsl.exe, then wsl in PATH;
+     * if the lookup fails — returns 'wsl.exe' in the hope that the system
+     * resolves the name itself at launch time.
      *
-     * @return string Путь к wsl.exe либо имя 'wsl.exe'.
+     * @return string Path to wsl.exe or the bare name 'wsl.exe'.
      */
     private function wslBin(): string
     {
@@ -50,9 +50,9 @@ final class Wsl extends Transport
     }
 
     /**
-     * Имя дистрибутива WSL из конфига транспорта (transport.distro).
+     * WSL distro name from the transport config (transport.distro).
      *
-     * @return string Дистрибутив; по умолчанию 'Ubuntu'.
+     * @return string The distro; 'Ubuntu' by default.
      */
     private function distro(): string
     {
@@ -60,11 +60,11 @@ final class Wsl extends Transport
     }
 
     /**
-     * Пользователь WSL, под которым выполняется команда (transport.user).
-     * По умолчанию root: так гарантированно доступны mysql/mysqldump,
-     * сокет MySQL и файлы дампов на /mnt/<disk>/... без проблем с правами.
+     * WSL user the command runs as (transport.user).
+     * Defaults to root: this guarantees access to mysql/mysqldump,
+     * the MySQL socket and dump files under /mnt/<disk>/... without permission issues.
      *
-     * @return string Имя пользователя; по умолчанию 'root'.
+     * @return string Username; 'root' by default.
      */
     private function user(): string
     {
@@ -72,9 +72,9 @@ final class Wsl extends Transport
     }
 
     /**
-     * Имя транспорта для логов и диагностики.
+     * Transport name for logs and diagnostics.
      *
-     * @return string Всегда 'wsl'.
+     * @return string Always 'wsl'.
      */
     public function name(): string
     {
@@ -82,11 +82,11 @@ final class Wsl extends Transport
     }
 
     /**
-     * PDO из локального (windows) PHP для этого транспорта не используется:
-     * сервер живёт внутри WSL, SQL-действия идут тем же путём, что и дампы,
-     * через launch() и бинарник mysql в дистрибутиве.
+     * PDO from the local (Windows) PHP is not used for this transport:
+     * the server lives inside WSL, so SQL actions take the same path as dumps,
+     * via launch() and the mysql binary in the distro.
      *
-     * @return bool Всегда false.
+     * @return bool Always false.
      */
     public function pdoReachable(): bool
     {
@@ -94,16 +94,16 @@ final class Wsl extends Transport
     }
 
     /**
-     * Оборачивает команду целевой стороны в запуск через wsl.exe + bash.
+     * Wraps the target-side command into a launch through wsl.exe + bash.
      *
-     * На Windows — запись команды во временный скрипт-файл и запуск
-     * `bash <путь>`; на не-Windows — обычный массив-запуск `bash -c`.
-     * Env (включая MYSQL_PWD) сворачивается в bash-строку/скрипт, поэтому
-     * пароль не попадает в argv самого wsl.exe.
+     * On Windows — the command is written to a temp script file and run as
+     * `bash <path>`; on non-Windows — a regular array launch `bash -c`.
+     * Env (including MYSQL_PWD) is folded into the bash string/script, so the
+     * password never enters the argv of wsl.exe itself.
      *
-     * @param list<string> $argv Аргументы команды внутри WSL (mysql/mysqldump ...).
-     * @param array<string,string> $env Переменные окружения для команды в WSL.
-     * @return array{cmd:string|list<string>,env:array<string,string>} Команда для proc_open; env пуст (всё внутри bash).
+     * @param list<string> $argv Command arguments inside WSL (mysql/mysqldump ...).
+     * @param array<string,string> $env Environment variables for the command in WSL.
+     * @return array{cmd:string|list<string>,env:array<string,string>} Command for proc_open; env is empty (everything is inside bash).
      */
     public function launch(array $argv, array $env = []): array
     {
@@ -141,11 +141,11 @@ final class Wsl extends Transport
     }
 
     /**
-     * Диагностика: наличие wsl.exe на машине, затем probe `mysql --version`
-     * и `mysqldump --version` внутри дистрибутива (тем же путём, что и
-     * реальные команды). В info выводятся distro/user и версия mysql.
+     * Diagnostics: presence of wsl.exe on the machine, then probes of
+     * `mysql --version` and `mysqldump --version` inside the distro (the same
+     * path real commands take). info reports distro/user and the mysql version.
      *
-     * @return array{ok:bool,info:string} ok — транспорт готов; info — детали или причина отказа.
+     * @return array{ok:bool,info:string} ok — transport is ready; info — details or the failure reason.
      */
     public function doctor(): array
     {

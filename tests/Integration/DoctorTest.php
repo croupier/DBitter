@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Интеграционный smoke-тест действия `doctor` против живого MySQL.
- * Проверяет, что сквозная цепочка работает end-to-end: разбор CLI →
- * Config → транспорт (local/wsl/...) → клиент mysql → сервер.
- * Ловит регрессии запуска транспорта и подключения, которые юнит-тесты
- * (без запуска команд) принципиально не видят. Требует DBT_IT=1.
+ * Integration smoke test of the `doctor` action against a live MySQL.
+ * Verifies that the end-to-end chain works: argv parsing →
+ * Config → transport (local/wsl/...) → the mysql client → the server.
+ * Catches transport-launch and connection regressions that unit tests
+ * (without running commands) fundamentally cannot see. Requires DBT_IT=1.
  */
 
 declare(strict_types=1);
@@ -13,15 +13,15 @@ declare(strict_types=1);
 namespace DbTools\Tests\Integration;
 
 /**
- * Проверка диагностики `doctor`: все проверки окружения должны проходить
- * на корректно настроенной машине (клиенты доступны, сервер отвечает).
+ * Checks the `doctor` diagnostics: all environment checks must pass
+ * on a correctly configured machine (clients available, server responding).
  */
 final class DoctorTest extends IntegrationTestCase
 {
     /**
-     * doctor завершается с кодом 0 и печатает итог «All checks passed».
-     * Регрессия: сломанный транспорт/подключение давали бы FAIL-строки
-     * и ненулевой exit-код — тест сразу это подсветит (с выводом doctor).
+     * doctor exits with code 0 and prints the "All checks passed" summary.
+     * Regression: a broken transport/connection would produce FAIL lines
+     * and a nonzero exit code — the test highlights it immediately (with doctor's output).
      */
     public function testDoctorReportsAllChecksPassing(): void
     {

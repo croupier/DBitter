@@ -3,24 +3,24 @@
 declare(strict_types=1);
 
 /**
- * Экстрактор «const»: реквизиты БД берутся из PHP-файла, возвращающего массив.
+ * "const" extractor: database credentials are taken from a PHP file returning an array.
  *
- * Файл может отдавать как полную нормализованную схему, так и обёртку
- * ['db' => [...]]. Дефолтный путь ищется цепочкой: dbitter.local.php и
- * dbitter.php в корне проекта (секреты — в local-файле, он не коммитится),
- * затем config.local.php в корне инструмента (legacy standalone-режим).
- * Путь переопределяется через --config. В отличие от wp-экстрактора этот
- * файл осознанно исполняется (require): это собственный конфиг пользователя,
- * а не чужой код проекта.
+ * The file may return either the full normalized schema or a wrapper
+ * ['db' => [...]]. The default path is resolved through a chain:
+ * dbitter.local.php and dbitter.php in the project root (secrets go in the
+ * local file, which is not committed), then config.local.php in the tool root
+ * (legacy standalone mode). The path can be overridden via --config. Unlike
+ * the wp extractor, this file is deliberately executed (require): it is the
+ * user's own config file, not someone else's project code.
  */
 
 /**
- * Возвращает замыкание-экстрактор: opts (root, path) -> нормализованный
- * массив реквизитов БД из require-конфига с подстановкой дефолтов.
+ * Returns the extractor closure: opts (root, path) -> normalized
+ * database credentials array loaded from the require-based config with defaults applied.
  *
- * @param array{root:string,path?:string} $opts Корень проекта и необязательный путь к конфигу (--config).
- * @return array<string,mixed> Нормализованные реквизиты БД.
- * @throws RuntimeException Если файл отсутствует, вернул не массив или в нём нет имени БД.
+ * @param array{root:string,path?:string} $opts Project root and optional path to the config file (--config).
+ * @return array<string,mixed> Normalized database credentials.
+ * @throws RuntimeException If the file is missing, did not return an array, or contains no database name.
  */
 return static function (array $opts): array {
     $root = $opts['root'];

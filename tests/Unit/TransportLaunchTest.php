@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Юнит-тесты обёрток запуска транспортов (DbTools\Transport\*): только
- * сборка команды, НИКАКОГО исполнения — работают на любом хосте без БД.
- * Ключевой инвариант: bash-транспорты (ssh/docker/wsl) встраивают
- * MYSQL_PWD в команду на целевой стороне и передают proc_open ПУСТОЙ
- * env-массив, а local отдаёт пароль настоящей переменной окружения.
- * Плюс специфика WSL на Windows: секрет живёт в скрипт-файле, не в argv.
+ * Unit tests for the transport launch wrappers (DbTools\Transport\*): only
+ * command assembly, NO execution — they run on any host without a DB.
+ * Key invariant: the bash transports (ssh/docker/wsl) embed MYSQL_PWD into
+ * the command on the target side and pass an EMPTY env array to proc_open,
+ * while local hands the password over as a real environment variable.
+ * Plus the WSL specifics on Windows: the secret lives in a script file, not in argv.
  */
 
 declare(strict_types=1);
@@ -23,16 +23,16 @@ use DbTools\Transport\Wsl;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Чисто «launch-wrapping» тесты: проверяют форму команды и env, которые
- * транспорт вернул бы для proc_open. Ничего не запускается, поэтому
- * прогон не требует ни MySQL, ни ssh/docker/wsl на машине.
+ * Pure "launch-wrapping" tests: they check the shape of the command and env
+ * the transport would return for proc_open. Nothing is executed, so the run
+ * requires neither MySQL nor ssh/docker/wsl on the machine.
  */
 final class TransportLaunchTest extends TestCase
 {
     /**
-     * Фабрика Transport::make по ключу target возвращает правильный класс;
-     * для docker/ssh обязательные поля (container/host) задаются в конфиге
-     * транспорта — без них фабрика не смогла бы построить транспорт.
+     * The Transport::make factory returns the right class per target key;
+     * for docker/ssh the required fields (container/host) are set in the
+     * transport config — without them the factory could not build the transport.
      */
     public function testMakeResolvesEachTarget(): void
     {
@@ -43,8 +43,8 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * local — прозрачная передача: argv не меняется, MYSQL_PWD остаётся
-     * настоящим env-массивом для proc_open (пароль не в argv).
+     * local — transparent pass-through: argv is unchanged, MYSQL_PWD stays a
+     * real env array for proc_open (the password is not in argv).
      */
     public function testLocalPassthroughKeepsEnvArray(): void
     {
@@ -56,10 +56,11 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * ssh «складывает» учётные данные в команду на удалённой стороне:
-     * MYSQL_PWD='pw' едет внутри bash-строки по SSH, а env для proc_open
-     * пуст — локальный пароль не светится в окружении процесса-лаунчера.
-     * Проверяются user@host, порт -p и форма MYSQL_PWD='...'.
+     * ssh "folds" the credentials into the command on the remote side:
+     * MYSQL_PWD='pw' travels inside the bash string over SSH, while the env
+     * passed to proc_open is empty — the local password never shows up in the
+     * launcher process's environment. Checks user@host, the -p port, and the
+     * MYSQL_PWD='...' form.
      */
     public function testSshFoldsCredentialsIntoCommandAndEmptiesEnv(): void
     {
@@ -74,9 +75,9 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * docker уважает настроенную оболочку контейнера: shell=sh →
-     * `docker exec -i <c> sh -c ...` (в минимальных образах bash может
-     * отсутствовать), env для proc_open пуст.
+     * docker respects the container's configured shell: shell=sh →
+     * `docker exec -i <c> sh -c ...` (minimal images may lack bash),
+     * and the env for proc_open is empty.
      */
     public function testDockerUsesConfiguredShell(): void
     {
@@ -89,8 +90,8 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * Без явного shell docker по умолчанию использует bash —
-     * дефолт не должен молча меняться.
+     * Without an explicit shell, docker defaults to bash —
+     * the default must not change silently.
      */
     public function testDockerDefaultsToBash(): void
     {
@@ -100,11 +101,11 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * WSL: пароль НИКОГДА не утекает через окружение Windows-процесса
-     * (env пуст) и PDO из хостового PHP недоступен (pdoReachable=false —
-     * сервер живёт внутри WSL). На Windows команда выполняется через
-     * скрипт-файл .dbt_wsl_cmd_*.sh: секрет внутри файла, а не в argv
-     * (argv виден в списке процессов); на прочих хостах — инлайн bash -c.
+     * WSL: the password NEVER leaks through the Windows process environment
+     * (env is empty), and PDO from the host PHP is unavailable (pdoReachable=false —
+     * the server lives inside WSL). On Windows the command runs via a script file
+     * .dbt_wsl_cmd_*.sh: the secret is inside the file, not in argv
+     * (argv is visible in the process list); on other hosts it is inlined via bash -c.
      */
     public function testWslNeverLeaksPasswordViaProcEnv(): void
     {
@@ -127,10 +128,11 @@ final class TransportLaunchTest extends TestCase
     }
 
     /**
-     * Хелпер: Config на детерминированной фикстуре const_db.php с нужным
-     * target. Секция transport.<target> подменяется через рефлексию
-     * (свойство profile приватное) — так тест задаёт параметры транспорта,
-     * не завися от config.php/config.local.php реальной машины.
+     * Helper: a Config on the deterministic const_db.php fixture with the
+     * requested target. The transport.<target> section is substituted via
+     * reflection (the profile property is private) — this lets the test set
+     * transport parameters without depending on the real machine's
+     * config.php/config.local.php.
      *
      * @param array<string,mixed> $transportConfig
      */

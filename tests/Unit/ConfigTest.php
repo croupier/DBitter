@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты DbTools\Lib\Config: нормализация параметров БД от неполного
- * экстрактора, приоритет CLI над профилем и экстрактором, порядок поиска
- * опций (CLI > profile.dump > profile > default), сбор секретов для
- * маскировки и автоопределение типа конфига проекта. Без БД: используется
- * временный корень с намеренно неполным экстрактором.
+ * Unit tests for DbTools\Lib\Config: normalizing DB parameters from an
+ * incomplete extractor, CLI precedence over the profile and the extractor,
+ * the opt() lookup order (CLI > profile.dump > profile > default), collecting
+ * secrets for masking, and auto-detecting the project config type. No DB
+ * involved: a temporary root with a deliberately incomplete extractor is used.
  */
 
 declare(strict_types=1);
@@ -18,22 +18,22 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверяет контракт Config, на который опираются все действия:
- * полный набор ключей db() без undefined-index, детерминированный
- * приоритет настроек и корректное автоопределение экстрактора.
+ * Verifies the Config contract all actions rely on:
+ * a complete key set from db() without undefined-index errors, deterministic
+ * settings precedence, and correct extractor auto-detection.
  */
 final class ConfigTest extends TestCase
 {
-    /** Временный корень «проекта»; внутри него tool/ играет роль DBitter. */
+    /** Temporary "project" root; tool/ inside it plays the role of DBitter. */
     private string $base = '';
 
     /**
-     * Готовит изолированный корень и экстрактор conf/partial.php,
-     * который возвращает ТОЛЬКО ключ name — худший случай неполного
-     * экстрактора, на котором проверяется нормализация дефолтов.
-     * Каталог .git в base — граница discovery: маркеров проекта нет,
-     * обход вверх останавливается, Config работает в legacy-фолбэке
-     * (project = dirname(tool)), как и ожидают эти тесты.
+     * Prepares an isolated root and a conf/partial.php extractor
+     * that returns ONLY the name key — the worst-case incomplete extractor,
+     * used to verify default normalization. The .git directory in base acts
+     * as the discovery boundary: no project markers exist, the upward walk
+     * stops there, and Config runs in the legacy fallback
+     * (project = dirname(tool)), exactly as these tests expect.
      */
     protected function setUp(): void
     {
@@ -47,7 +47,7 @@ final class ConfigTest extends TestCase
         );
     }
 
-    /** Удаляет временный корень со всем содержимым после каждого теста. */
+    /** Removes the temporary root with all its contents after each test. */
     protected function tearDown(): void
     {
         if ($this->base !== '') {
@@ -55,17 +55,17 @@ final class ConfigTest extends TestCase
         }
     }
 
-    /** Путь к «корню инструмента» внутри временного проекта. */
+    /** Path to the "tool root" inside the temporary project. */
     private function root(): string
     {
         return $this->base . '/tool';
     }
 
     /**
-     * Регрессия undefined-index: частичный экстрактор не должен приводить
-     * к отсутствующим ключам в db() — Config обязан дополнить схему
-     * дефолтами (host/port/user/pass/charset/prefix/socket/engine/user_host),
-     * иначе Doctor, манифест и clientBase падали бы на недостающих ключах.
+     * undefined-index regression: a partial extractor must not leave missing
+     * keys in db() — Config has to fill the schema up with defaults
+     * (host/port/user/pass/charset/prefix/socket/engine/user_host), otherwise
+     * Doctor, the manifest and clientBase would crash on the missing keys.
      */
     public function testResolveDbNormalizesMissingKeys(): void
     {
@@ -83,8 +83,8 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Приоритет CLI: --host/--port перекрывают значения экстрактора;
-     * строковый порт из argv приводится к int (CLI всегда отдаёт строки).
+     * CLI precedence: --host/--port override the extractor values;
+     * a string port from argv is cast to int (CLI always yields strings).
      */
     public function testCliOverridesExtractorValues(): void
     {
@@ -94,9 +94,9 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Порядок поиска opt(): CLI > profile['dump'][key] > profile[key] > default.
-     * kind из CLI перекрывает профиль, compress берётся из profile.dump,
-     * отсутствующий ключ отдаёт переданный default.
+     * opt() lookup order: CLI > profile['dump'][key] > profile[key] > default.
+     * kind from CLI overrides the profile, compress comes from profile.dump,
+     * a missing key returns the default that was passed in.
      */
     public function testOptPrecedenceCliOverProfileDump(): void
     {
@@ -110,9 +110,9 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * secrets() собирает только НЕпустые пароли (db.pass и admin.pass) —
-     * этот список Command::mask использует для зачистки логов. Пустые
-     * значения в список попасть не должны (маскировать '' нельзя).
+     * secrets() collects only NON-empty passwords (db.pass and admin.pass) —
+     * Command::mask uses this list to scrub logs. Empty values must not end up
+     * in the list (an empty string '' must never be masked).
      */
     public function testSecretsCollectsNonEmptyPasswords(): void
     {
@@ -122,8 +122,8 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Без настройки dump.dir и без найденного от cwd проекта (legacy-фолбэк)
-     * каталог дампов по умолчанию — <корень инструмента>/dump.
+     * With no dump.dir setting and no project found from cwd (legacy fallback),
+     * the default dump directory is <tool root>/dump.
      */
     public function testDumpDirDefaultsUnderRoot(): void
     {
@@ -132,9 +132,9 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Автоопределение экстрактора по маркерам проекта: wp-config.php → wp,
-     * artisan+.env → laravel, только .env → env, ничего → const.
-     * detectConf приватный, поэтому вызывается через рефлексию.
+     * Extractor auto-detection via project markers: wp-config.php → wp,
+     * artisan+.env → laravel, only .env → env, nothing → const.
+     * detectConf is private, so it is invoked through reflection.
      */
     #[DataProvider('confMarkers')]
     public function testDetectConf(string $marker, string $expected): void
@@ -157,7 +157,7 @@ final class ConfigTest extends TestCase
     }
 
     /**
-     * Набор случаев для testDetectConf: маркер(ы) → ожидаемый экстрактор.
+     * Set of cases for testDetectConf: marker(s) → expected extractor.
      *
      * @return array<string,array{string,string}>
      */

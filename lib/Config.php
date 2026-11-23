@@ -5,42 +5,42 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Единая точка конфигурации DBitter. Приоритет источников (от старшего
- * к младшему): аргументы CLI > dbitter.local.php > dbitter.php (профиль
- * проекта) > config.local.php > config.php (профиль инструмента) >
- * встроенные дефолты. Корень проекта ищется вверх от cwd по маркерам
- * (dbitter.php, wp-config.php, artisan, .env, composer.json); если ничего
- * не найдено — legacy-фолбэк: родитель каталога инструмента. Параметры БД
- * извлекаются экстрактором из conf/<имя>.php (wp/laravel/env/const;
- * wp-config.php ПАРСИТСЯ, а не require-ится), затем нормализуются до полной
- * схемы и перекрываются CLI-ключами. Также отдаёт target/транспорт,
- * админ-доступ, опции дампов и список секретов для маскировки
- * (Command::mask). Используется всеми действиями.
+ * Single configuration entry point for DBitter. Source priority (from
+ * highest to lowest): CLI arguments > dbitter.local.php > dbitter.php (project
+ * profile) > config.local.php > config.php (tool profile) >
+ * built-in defaults. The project root is searched upward from cwd using
+ * markers (dbitter.php, wp-config.php, artisan, .env, composer.json); if nothing
+ * is found — legacy fallback: the parent of the tool directory. Database credentials
+ * are pulled by the config extractor from conf/<name>.php (wp/laravel/env/const;
+ * wp-config.php is PARSED, not require-d), then normalized to the full
+ * schema and overridden by CLI keys. Also serves target/transport,
+ * admin access, dump options and the list of secrets for masking
+ * (Command::mask). Used by all actions.
  */
 final class Config
 {
-    /** @var array<string,mixed> Слитый профиль: слои инструмента + слои проекта поверх. */
+    /** @var array<string,mixed> Merged profile: tool layers with the project layers on top. */
     private array $profile;
-    /** @var array<string,mixed> Разобранные аргументы/опции CLI (высший приоритет). */
+    /** @var array<string,mixed> Parsed CLI arguments/options (highest priority). */
     private array $cli;
-    /** @var array<string,mixed> Нормализованные параметры БД (host/port/user/pass/name/...). */
+    /** @var array<string,mixed> Normalized database credentials (host/port/user/pass/name/...). */
     private array $db;
-    /** @var string Корень инструмента (DBitter): код, conf/, профили config*.php. */
+    /** @var string Tool root (DBitter): code, conf/, config*.php profiles. */
     private string $root;
-    /** @var string Корень проекта: найден вверх от cwd либо dirname(root) в legacy-фолбэке. */
+    /** @var string Project root: found upward from cwd, or dirname(root) in the legacy fallback. */
     private string $projectRoot;
-    /** @var bool Проект найден discovery-проходом от cwd (а не legacy-фолбэком). */
+    /** @var bool Project was found by the upward walk from cwd (not by the legacy fallback). */
     private bool $projectFound;
 
     /**
-     * Загружает профиль и сразу разрешает параметры БД, чтобы дальше
-     * конфиг был неизменяемым снимком (ошибки конфигурации видны при старте).
+     * Loads the profile and resolves the database credentials right away, so that
+     * the config is an immutable snapshot afterwards (configuration errors are visible at startup).
      *
-     * @param string $root Путь к корню инструмента (каталог DBitter).
-     * @param array<string,mixed> $cli Опции командной строки.
-     * @param string|null $cwd Стартовый каталог discovery проекта; null = getcwd().
-     *                         Инъекция нужна тестам и сабпроцессам с другим cwd.
-     * @throws \RuntimeException Если выбранный экстрактор conf не найден.
+     * @param string $root Path to the tool root (the DBitter directory).
+     * @param array<string,mixed> $cli Command-line options.
+     * @param string|null $cwd Starting directory for project discovery; null = getcwd().
+     *                        Injection is needed for tests and subprocesses with a different cwd.
+     * @throws \RuntimeException If the selected conf config extractor is not found.
      */
     public function __construct(string $root, array $cli = [], ?string $cwd = null)
     {
@@ -56,18 +56,18 @@ final class Config
     }
 
     /**
-     * Ищет корень проекта вверх от cwd до корня файловой системы.
+     * Searches for the project root upward from cwd to the filesystem root.
      *
-     * Маркеры проекта в каталоге: dbitter.php (явный профиль DBitter),
-     * wp-config.php, artisan, .env, composer.json. Каталог самого инструмента
-     * пропускается: DBitter не должен считать «проектом» сам себя (в пакете
-     * есть composer.json, в репозитории — .git). Граница обхода — каталог
-     * с .git: выше VCS-корня проект не ищем, чтобы не подхватить чужой
-     * composer.json/.env из родительских каталогов.
+     * Project markers in a directory: dbitter.php (an explicit DBitter profile),
+     * wp-config.php, artisan, .env, composer.json. The tool's own directory
+     * is skipped: DBitter must not treat itself as the "project" (the package
+     * ships a composer.json, the repository a .git). The boundary of the upward walk is the
+     * directory containing .git: above the VCS root the project is not searched, so that we do not pick up someone else's
+     * composer.json/.env from parent directories.
      *
-     * @param string $cwd Стартовый каталог (обычно getcwd()).
-     * @param string $toolRoot Корень инструмента — пропускается при обходе.
-     * @return string|null Найденный корень проекта или null (нужен фолбэк).
+     * @param string $cwd Starting directory (usually getcwd()).
+     * @param string $toolRoot Tool root — skipped during the walk.
+     * @return string|null The project root that was found, or null (fallback needed).
      */
     private static function discoverProject(string $cwd, string $toolRoot): ?string
     {
@@ -96,11 +96,11 @@ final class Config
     }
 
     /**
-     * Нормализует путь для сравнения каталогов: realpath разрешает симлинки
-     * и junction (важно для vendor-режима на Windows) и унифицирует слэши.
+     * Normalizes a path for directory comparison: realpath resolves symlinks
+     * and junctions (important for vendor mode on Windows) and unifies slashes.
      *
-     * @param string $path Абсолютный путь.
-     * @return string Путь с прямыми слэшами, без хвостового слэша.
+     * @param string $path Absolute path.
+     * @return string Path with forward slashes and no trailing slash.
      */
     private static function normalizePath(string $path): string
     {
@@ -109,17 +109,17 @@ final class Config
     }
 
     /**
-     * Загружает профиль конфигурации четырьмя слоями (младший → старший):
-     * config.php и config.local.php из корня инструмента (standalone-профиль),
-     * затем dbitter.php и dbitter.local.php из корня проекта. Каждый слой
-     * накладывается рекурсивно (array_replace_recursive) — локальные
-     * переопределения (пароли, target=wsl и т.п.) не требуют правок основных
-     * файлов и не попадают в git. В composer-архив config.php не входит
-     * (export-ignore), поэтому у потребителя работают только его dbitter*.php.
+     * Loads the configuration profile in four layers (lowest → highest):
+     * config.php and config.local.php from the tool root (standalone profile),
+     * then dbitter.php and dbitter.local.php from the project root. Each layer
+     * is applied recursively (array_replace_recursive) — local
+     * overrides (passwords, target=wsl and the like) need no edits to the main
+     * files and stay out of git. The composer archive does not include config.php
+     * (export-ignore), so a consumer only runs its own dbitter*.php.
      *
-     * @param string $root Корень инструмента.
-     * @param string $projectRoot Корень проекта.
-     * @return array<string,mixed> Слитый профиль (пустой, если файлов нет).
+     * @param string $root Tool root.
+     * @param string $projectRoot Project root.
+     * @return array<string,mixed> Merged profile (empty when no files exist).
      */
     private static function loadProfile(string $root, string $projectRoot): array
     {
@@ -138,13 +138,13 @@ final class Config
     }
 
     /**
-     * Разрешает параметры БД: выбирает экстрактор conf (CLI 'conf' >
-     * профиль 'conf' > автоопределение detectConf), вызывает его с опциями
-     * (путь к конфигу проекта, флаг bootstrap, корень проекта), дополняет
-     * результат дефолтами до полной схемы и накладывает CLI-переопределения.
+     * Resolves the database credentials: picks the conf config extractor (CLI 'conf' >
+     * profile 'conf' > auto-detection via detectConf), calls it with the options
+     * (path to the project config, bootstrap flag, project root), pads the
+     * result with defaults up to the full schema and applies CLI overrides.
      *
-     * @return array<string,mixed> Полная нормализованная схема параметров БД.
-     * @throws \RuntimeException Если файл conf/<имя>.php не существует.
+     * @return array<string,mixed> Complete normalized schema of database credentials.
+     * @throws \RuntimeException If the file conf/<name>.php does not exist.
      */
     private function resolveDb(): array
     {
@@ -194,13 +194,13 @@ final class Config
     }
 
     /**
-     * Автоопределение экстрактора по файлам-маркерам в корне проекта:
-     * wp-config.php => WordPress; artisan + .env => Laravel; только .env =>
-     * generic env; иначе const (константы/дефолты). Порядок важен: wp-config
-     * проверяется первым, .env — последним из файлов.
+     * Auto-detection of the config extractor by marker files in the project root:
+     * wp-config.php => WordPress; artisan + .env => Laravel; only .env =>
+     * generic env; otherwise const (constants/defaults). The order matters: wp-config
+     * is checked first, .env is the last of the files checked.
      *
-     * @param string $project Корень проекта (найденный discovery или фолбэк).
-     * @return string Имя экстрактора: 'wp', 'laravel', 'env' или 'const'.
+     * @param string $project Project root (found by the upward walk or the fallback).
+     * @return string Config extractor name: 'wp', 'laravel', 'env' or 'const'.
      */
     private static function detectConf(string $project): string
     {
@@ -217,9 +217,9 @@ final class Config
     }
 
     /**
-     * Нормализованные параметры подключения к БД проекта.
+     * Normalized database connection credentials of the project.
      *
-     * @return array<string,mixed> Схема из resolveDb (host/port/user/pass/name/...).
+     * @return array<string,mixed> Schema from resolveDb (host/port/user/pass/name/...).
      */
     public function db(): array
     {
@@ -227,9 +227,9 @@ final class Config
     }
 
     /**
-     * Слитый профиль config.php + config.local.php (без CLI).
+     * Merged profile config.php + config.local.php (without CLI).
      *
-     * @return array<string,mixed> Профиль конфигурации.
+     * @return array<string,mixed> Configuration profile.
      */
     public function profile(): array
     {
@@ -237,9 +237,9 @@ final class Config
     }
 
     /**
-     * Опции командной строки, как их разобрал start.php.
+     * Command-line options, as parsed by start.php.
      *
-     * @return array<string,mixed> CLI-опции.
+     * @return array<string,mixed> CLI options.
      */
     public function cli(): array
     {
@@ -247,9 +247,9 @@ final class Config
     }
 
     /**
-     * Корень инструмента (каталог DBitter).
+     * Tool root (the DBitter directory).
      *
-     * @return string Абсолютный путь.
+     * @return string Absolute path.
      */
     public function root(): string
     {
@@ -257,10 +257,10 @@ final class Config
     }
 
     /**
-     * Корень проекта: найденный вверх от cwd, либо dirname(root) в
-     * legacy-фолбэке. От него строятся пути экстракторов и дефолтный dump/.
+     * Project root: found upward from cwd, or dirname(root) in the
+     * legacy fallback. Config extractor paths and the default dump/ are built from it.
      *
-     * @return string Абсолютный путь.
+     * @return string Absolute path.
      */
     public function projectRoot(): string
     {
@@ -268,11 +268,11 @@ final class Config
     }
 
     /**
-     * Имя проекта для имён дампов и манифестов — basename корня проекта.
-     * Заменяет прежний dbt_project(), который всегда смотрел на родителя
-     * каталога инструмента и врал в vendor-режиме.
+     * Project name used in dump and manifest names — the basename of the project root.
+     * Replaces the former dbt_project(), which always looked at the parent of the tool
+     * directory and lied in vendor mode.
      *
-     * @return string Имя каталога проекта.
+     * @return string Project directory name.
      */
     public function projectName(): string
     {
@@ -280,11 +280,11 @@ final class Config
     }
 
     /**
-     * Транспорт исполнения команд MySQL: CLI 'target' > профиль 'target' >
-     * 'local'. Возможные значения: local/wsl/docker/ssh/pdo (в этом проекте
-     * обычно wsl — MySQL внутри WSL Ubuntu).
+     * Transport for executing MySQL commands: CLI 'target' > profile 'target' >
+     * 'local'. Possible values: local/wsl/docker/ssh/pdo (in this project
+     * it is usually wsl — MySQL inside WSL Ubuntu).
      *
-     * @return string Имя транспорта.
+     * @return string Transport name.
      */
     public function target(): string
     {
@@ -292,10 +292,10 @@ final class Config
     }
 
     /**
-     * Настройки выбранного транспорта из профиля (profile['transport'][target]),
-     * например wsl-дистрибутив, docker-контейнер, ssh-хост.
+     * Settings of the selected transport from the profile (profile['transport'][target]),
+     * for example the wsl distribution, docker container, ssh host.
      *
-     * @return array<string,mixed> Настройки транспорта или пустой массив.
+     * @return array<string,mixed> Transport settings or an empty array.
      */
     public function transportConfig(): array
     {
@@ -303,10 +303,10 @@ final class Config
     }
 
     /**
-     * Административный доступ к MySQL (для create-db/create-user/drop-db):
-     * профиль 'admin' или дефолт root без пароля.
+     * Administrative access to MySQL (for create-db/create-user/drop-db):
+     * profile 'admin' or the default root with an empty password.
      *
-     * @return array<string,mixed> Ключи 'user' и 'pass'.
+     * @return array<string,mixed> The 'user' and 'pass' keys.
      */
     public function admin(): array
     {
@@ -314,13 +314,13 @@ final class Config
     }
 
     /**
-     * Универсальный доступ к опции с учётом приоритета: CLI >
-     * profile['dump'][key] (секция настроек дампов) > profile[key] >
-     * переданный дефолт. Так, например, читаются compress/part/keep.
+     * Generic access to an option honouring priority: CLI >
+     * profile['dump'][key] (the dump settings section) > profile[key] >
+     * the default passed in. This is how compress/part/keep are read, for instance.
      *
-     * @param string $key Имя опции.
-     * @param mixed $default Значение, если опция нигде не задана.
-     * @return mixed Найденное значение или дефолт.
+     * @param string $key Option name.
+     * @param mixed $default Value used when the option is set nowhere.
+     * @return mixed The value found, or the default.
      */
     public function opt(string $key, mixed $default = null): mixed
     {
@@ -328,11 +328,11 @@ final class Config
     }
 
     /**
-     * Каталог дампов: опция 'dir' (CLI/профиль) или дефолт — <project>/dump,
-     * когда проект найден от cwd, иначе <tool>/dump (legacy-поведение).
-     * Завершающие слэши срезаются для единообразия путей.
+     * Dump directory: the 'dir' option (CLI/profile) or the default — <project>/dump,
+     * when the project was found from cwd, otherwise <tool>/dump (legacy behaviour).
+     * Trailing slashes are stripped for path consistency.
      *
-     * @return string Путь каталога дампов без хвостового слэша.
+     * @return string Dump directory path without a trailing slash.
      */
     public function dumpDir(): string
     {
@@ -342,10 +342,10 @@ final class Config
     }
 
     /**
-     * Метка окружения для имён дампов/манифестов: опция 'env' или,
-     * если не задана, имя транспорта (target).
+     * Environment label used in dump/manifest names: the 'env' option or,
+     * when unset, the transport name (target).
      *
-     * @return string Имя окружения (например, 'wsl').
+     * @return string Environment name (for example, 'wsl').
      */
     public function env(): string
     {
@@ -353,10 +353,10 @@ final class Config
     }
 
     /**
-     * Список непустых секретов (пароль БД проекта и админ-пароль) для
-     * маскировки в отображаемых командах и логах (Command::mask).
+     * List of non-empty secrets (the project database password and the admin password) for
+     * masking in displayed commands and logs (Command::mask).
      *
-     * @return list<string> Секреты; пустые значения отфильтрованы.
+     * @return list<string> Secrets; empty values are filtered out.
      */
     public function secrets(): array
     {

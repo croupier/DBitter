@@ -5,31 +5,31 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Простой статический логгер CLI: уровни INFO/STEP/DEBUG/WARN/ERROR,
- * вывод в STDOUT/STDERR и (опционально) в лог-файл. Режимы --quiet и
- * --verbose задаются один раз через configure() из start.php; далее
- * все классы ядра (Sql, транспорты, действия) пишут через него.
- * Файл всегда получает все сообщения, даже подавленные на консоли.
+ * Simple static CLI logger: INFO/STEP/DEBUG/WARN/ERROR levels, output to
+ * STDOUT/STDERR and (optionally) a log file. The --quiet and --verbose modes
+ * are set once via configure() from start.php; afterwards all core classes
+ * (Sql, transports, actions) write through it.
+ * The file always receives every message, even ones suppressed on the console.
  */
 final class Log
 {
-    /** @var bool --quiet: подавляет INFO/STEP на консоли (файл всё равно пишется). */
+    /** @var bool --quiet: suppresses INFO/STEP on the console (the file is still written). */
     private static bool $quiet = false;
-    /** @var bool --verbose: выводит DEBUG на консоль. */
+    /** @var bool --verbose: prints DEBUG to the console. */
     private static bool $verbose = false;
-    /** @var resource|null Открытый лог-файл (режим append) или null, если путь не задан. */
+    /** @var resource|null Open log file (append mode) or null when no path was set. */
     private static $file = null;
 
     /**
-     * Настраивает режимы вывода и, при заданном пути, открывает лог-файл
-     * на дозапись (каталог создаётся при необходимости). Вызывается один
-     * раз при старте CLI.
+     * Configures the output modes and, when a path is given, opens the log
+     * file for appending (the directory is created if needed). Called once
+     * at CLI startup.
      *
-     * Побочные эффекты: создаёт каталог лога (Fs::ensureDir) и открывает файл.
+     * Side effects: creates the log directory (Fs::ensureDir) and opens the file.
      *
-     * @param bool $quiet Подавлять INFO/STEP на консоли.
-     * @param bool $verbose Показывать DEBUG на консоли.
-     * @param string|null $path Путь лог-файла; null — писать только в потоки.
+     * @param bool $quiet Suppress INFO/STEP on the console.
+     * @param bool $verbose Show DEBUG on the console.
+     * @param string|null $path Log file path; null — write only to the streams.
      */
     public static function configure(bool $quiet, bool $verbose, ?string $path): void
     {
@@ -42,9 +42,9 @@ final class Log
     }
 
     /**
-     * Обычное информационное сообщение -> STDOUT (подавляется --quiet).
+     * Regular informational message -> STDOUT (suppressed by --quiet).
      *
-     * @param string $msg Текст сообщения.
+     * @param string $msg Message text.
      */
     public static function info(string $msg): void
     {
@@ -52,10 +52,10 @@ final class Log
     }
 
     /**
-     * Сообщение о начале этапа ("==> ...") -> STDOUT; визуально выделяет
-     * шаги сценария (экспорт, импорт и т.п.). Подавляется --quiet.
+     * Stage-start message ("==> ...") -> STDOUT; visually highlights the
+     * scenario steps (export, import, etc.). Suppressed by --quiet.
      *
-     * @param string $msg Название этапа.
+     * @param string $msg Stage name.
      */
     public static function step(string $msg): void
     {
@@ -63,11 +63,11 @@ final class Log
     }
 
     /**
-     * Отладочное сообщение (SQL-запросы, команды и т.п.): на консоль
-     * попадает только при --verbose, но в лог-файл пишется всегда —
-     * это основной источник данных для разбора инцидентов.
+     * Debug message (SQL queries, commands, etc.): reaches the console only
+     * with --verbose, but is always written to the log file — this is the
+     * main data source for incident analysis.
      *
-     * @param string $msg Текст отладки.
+     * @param string $msg Debug text.
      */
     public static function debug(string $msg): void
     {
@@ -79,10 +79,10 @@ final class Log
     }
 
     /**
-     * Предупреждение -> STDERR; не подавляется --quiet, чтобы проблемы
-     * были видны даже в тихом режиме.
+     * Warning -> STDERR; not suppressed by --quiet, so problems stay visible
+     * even in quiet mode.
      *
-     * @param string $msg Текст предупреждения.
+     * @param string $msg Warning text.
      */
     public static function warn(string $msg): void
     {
@@ -90,9 +90,9 @@ final class Log
     }
 
     /**
-     * Ошибка -> STDERR; не подавляется --quiet.
+     * Error -> STDERR; not suppressed by --quiet.
      *
-     * @param string $msg Текст ошибки.
+     * @param string $msg Error text.
      */
     public static function error(string $msg): void
     {
@@ -100,15 +100,15 @@ final class Log
     }
 
     /**
-     * Формирует строку "[ЧЧ:ММ:СС] LEVEL msg" и пишет её в указанный поток
-     * (если не null) и в лог-файл (если открыт). Разделение потоков и файла
-     * позволяет скрывать сообщения на консоли, не теряя их в журнале.
+     * Builds a "[HH:MM:SS] LEVEL msg" line and writes it to the given stream
+     * (if not null) and to the log file (if open). Separating stream and file
+     * output allows hiding messages on the console without losing them in the journal.
      *
-     * Побочные эффекты: пишет в stdout/stderr и/или лог-файл.
+     * Side effects: writes to stdout/stderr and/or the log file.
      *
-     * @param string $level Метка уровня (INFO/STEP/DEBUG/WARN/ERROR).
-     * @param string $msg Текст сообщения.
-     * @param resource|null $stream Поток консоли или null (только в файл).
+     * @param string $level Level label (INFO/STEP/DEBUG/WARN/ERROR).
+     * @param string $msg Message text.
+     * @param resource|null $stream Console stream or null (file only).
      */
     private static function write(string $level, string $msg, $stream): void
     {

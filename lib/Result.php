@@ -5,19 +5,19 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Неизменяемый результат выполнения внешней команды: код возврата,
- * захваченные stdout/stderr, текст команды для диагностики и длительность.
- * Создаётся в Command::capture и Process::finish; проверяется вызывающим
- * кодом (транспорты, действия) через ok()/output().
+ * Immutable result of running an external command: exit code, captured
+ * stdout/stderr, the command text for diagnostics and the elapsed duration.
+ * Created in Command::capture and Process::finish; inspected by calling
+ * code (transports, actions) via ok()/output().
  */
 final class Result
 {
     /**
-     * @param int $code Код возврата процесса (0 — успех).
-     * @param string $stdout Захваченный стандартный вывод.
-     * @param string $stderr Захваченный вывод ошибок.
-     * @param string $command Отображаемая командная строка (секреты замаскированы вызывающим).
-     * @param float $elapsed Время выполнения в секундах (долях microtime).
+     * @param int $code Process exit code (0 — success).
+     * @param string $stdout Captured standard output.
+     * @param string $stderr Captured error output.
+     * @param string $command Displayable command line (secrets masked by the caller).
+     * @param float $elapsed Runtime in seconds (fractional microtime).
      */
     public function __construct(
         public readonly int $code,
@@ -29,9 +29,9 @@ final class Result
     }
 
     /**
-     * Успешно ли завершилась команда: код возврата строго равен 0.
+     * Whether the command completed successfully: the exit code equals 0 exactly.
      *
-     * @return bool true при нулевом коде возврата.
+     * @return bool true on a zero exit code.
      */
     public function ok(): bool
     {
@@ -39,10 +39,10 @@ final class Result
     }
 
     /**
-     * Объединённый вывод для сообщений об ошибках и диагностики: stdout,
-     * затем stderr (если непустой) через перевод строки, без краевых пробелов.
+     * Combined output for error messages and diagnostics: stdout, then
+     * stderr (when non-empty) separated by a newline, without edge whitespace.
      *
-     * @return string Объединённый вывод без краевых пробелов.
+     * @return string Combined output without leading/trailing whitespace.
      */
     public function output(): string
     {

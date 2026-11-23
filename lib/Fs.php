@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Файловые и ОС-утилиты: определение платформы, преобразование Windows-путей
- * в unix/WSL-вид (/mnt/c/...), поиск бинарников в PATH (which/hasBinary),
- * безопасное создание и рекурсивное удаление каталогов, форматирование
- * размеров. Используется транспортами (поиск mysql/wsl/ssh), Dump (пути,
- * временные файлы) и Command/Process (Fs::tempDir).
+ * Filesystem and OS utilities: platform detection, converting Windows paths
+ * to unix/WSL form (/mnt/c/...), locating binaries in PATH (which/hasBinary),
+ * safe directory creation and recursive removal, size formatting. Used by
+ * the transports (finding mysql/wsl/ssh), Dump (paths, temp files)
+ * and Command/Process (Fs::tempDir).
  */
 final class Fs
 {
     /**
-     * Нормализованное имя ОС для конфигурации и логов.
+     * Normalized OS name for configuration and logs.
      *
-     * @return string 'windows', 'mac' или 'linux' (прочие семейства сводятся к linux).
+     * @return string 'windows', 'mac' or 'linux' (other families are mapped to linux).
      */
     public static function os(): string
     {
@@ -28,10 +28,10 @@ final class Fs
     }
 
     /**
-     * Работаем ли мы на Windows — от этого зависят расширения бинарников
-     * (.exe/.cmd/.bat), особенности env в proc_open и транспорт wsl.
+     * Whether we are running on Windows — this determines binary extensions
+     * (.exe/.cmd/.bat), env specifics in proc_open and the wsl transport.
      *
-     * @return bool true на Windows.
+     * @return bool true on Windows.
      */
     public static function isWindows(): bool
     {
@@ -39,10 +39,10 @@ final class Fs
     }
 
     /**
-     * Меняет разделители "\" на "/" — базовое преобразование пути в unix-вид.
+     * Replaces "\" separators with "/" — the basic path conversion to unix form.
      *
-     * @param string $path Исходный путь (возможно, Windows).
-     * @return string Путь с прямыми слэшами.
+     * @param string $path Source path (possibly a Windows one).
+     * @return string Path with forward slashes.
      */
     public static function toUnix(string $path): string
     {
@@ -50,12 +50,12 @@ final class Fs
     }
 
     /**
-     * Преобразует Windows-путь в путь внутри WSL: "D:\dir\file" -> "/mnt/d/dir/file".
-     * Нужно, чтобы MySQL/скрипты внутри WSL видели файлы Windows-диска.
-     * Пути без префикса диска (уже unix) возвращаются без изменений.
+     * Converts a Windows path to a path inside WSL: "D:\dir\file" -> "/mnt/d/dir/file".
+     * Needed so MySQL/scripts inside WSL can see files on the Windows drive.
+     * Paths without a drive prefix (already unix) are returned unchanged.
      *
-     * @param string $path Windows- или unix-путь.
-     * @return string Путь в терминах файловой системы WSL.
+     * @param string $path A Windows or unix path.
+     * @return string Path in terms of the WSL filesystem.
      */
     public static function toWsl(string $path): string
     {
@@ -70,10 +70,10 @@ final class Fs
     }
 
     /**
-     * Каталог временных файлов без завершающего слэша — сюда Command/Process
-     * пишут захват вывода, а Dump распаковывает zstd.
+     * Temporary file directory without a trailing slash — Command/Process
+     * write captured output here, and Dump unpacks zstd into it.
      *
-     * @return string Путь системного temp-каталога.
+     * @return string Path to the system temp directory.
      */
     public static function tempDir(): string
     {
@@ -81,12 +81,12 @@ final class Fs
     }
 
     /**
-     * Гарантирует существование каталога (создаёт рекурсивно при необходимости).
+     * Ensures a directory exists (creating it recursively when needed).
      *
-     * Побочные эффекты: создаёт каталог и всех недостающих родителей.
+     * Side effects: creates the directory and all missing parents.
      *
-     * @param string $dir Путь каталога.
-     * @throws \RuntimeException Если создать каталог не удалось.
+     * @param string $dir Directory path.
+     * @throws \RuntimeException If the directory could not be created.
      */
     public static function ensureDir(string $dir): void
     {
@@ -98,13 +98,13 @@ final class Fs
     }
 
     /**
-     * Аналог `which`: ищет исполняемый файл по имени в дополнительных
-     * каталогах и в PATH. На Windows перебирает типовые расширения
-     * (.exe/.cmd/.bat и без расширения), на unix — точное имя.
+     * Analogue of `which`: looks for an executable by name in the additional
+     * directories and in PATH. On Windows it iterates over typical extensions
+     * (.exe/.cmd/.bat and no extension), on unix — the exact name.
      *
-     * @param string $name Имя бинарника (mysql, wsl, zstd, ssh...).
-     * @param array<int,string> $extraDirs Каталоги, проверяемые раньше PATH.
-     * @return string|null Полный путь к найденному файлу или null.
+     * @param string $name Binary name (mysql, wsl, zstd, ssh...).
+     * @param array<int,string> $extraDirs Directories checked before PATH.
+     * @return string|null Full path to the found file or null.
      */
     public static function which(string $name, array $extraDirs = []): ?string
     {
@@ -125,12 +125,12 @@ final class Fs
     }
 
     /**
-     * Есть ли бинарник в PATH/доп. каталогах — используется doctor и
-     * транспортами для проверки доступности mysql/wsl/docker/ssh.
+     * Whether a binary is available in PATH/extra directories — used by doctor
+     * and the transports to check the availability of mysql/wsl/docker/ssh.
      *
-     * @param string $name Имя бинарника.
-     * @param array<int,string> $extraDirs Дополнительные каталоги поиска.
-     * @return bool true, если файл найден.
+     * @param string $name Binary name.
+     * @param array<int,string> $extraDirs Additional search directories.
+     * @return bool true if the file was found.
      */
     public static function hasBinary(string $name, array $extraDirs = []): bool
     {
@@ -138,12 +138,12 @@ final class Fs
     }
 
     /**
-     * Рекурсивно удаляет каталог со всем содержимым (аналог rm -rf).
+     * Recursively removes a directory with all its contents (analogue of rm -rf).
      *
-     * Побочные эффекты: безвозвратно удаляет файлы и подкаталоги;
-     * несуществующий каталог — не ошибка (тихий выход).
+     * Side effects: irrevocably deletes files and subdirectories;
+     * a nonexistent directory is not an error (silent return).
      *
-     * @param string $dir Путь удаляемого каталога.
+     * @param string $dir Path of the directory to delete.
      */
     public static function rrmdir(string $dir): void
     {
@@ -162,11 +162,11 @@ final class Fs
     }
 
     /**
-     * Переводит мегабайты (возможно, дробные — из настроек размера части
-     * дампа) в целое число байт.
+     * Converts megabytes (possibly fractional — from dump chunk size settings)
+     * to a whole number of bytes.
      *
-     * @param float $mb Размер в МиБ.
-     * @return int Размер в байтах (округлённый).
+     * @param float $mb Size in MiB.
+     * @return int Size in bytes (rounded).
      */
     public static function bytes(float $mb): int
     {
@@ -174,11 +174,11 @@ final class Fs
     }
 
     /**
-     * Человекочитаемый размер для логов и манифестов: B/KiB/MiB/GiB.
-     * Байты — без дробной части, остальные единицы — с одним знаком.
+     * Human-readable size for logs and manifests: B/KiB/MiB/GiB.
+     * Bytes are shown without a fractional part, other units with one decimal.
      *
-     * @param int $bytes Размер в байтах.
-     * @return string Например, "1536 B", "1.5 KiB", "23.4 MiB".
+     * @param int $bytes Size in bytes.
+     * @return string For example, "1536 B", "1.5 KiB", "23.4 MiB".
      */
     public static function human(int $bytes): string
     {

@@ -25,6 +25,8 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Changed
 
+- All PHPDoc moved to English; Russian inline comments are kept for local
+  maintainers. Executable code verified byte-identical (token-level check).
 - Default dump directory is `<project>/dump` when the project is discovered
   from cwd (`<tool>/dump` in the legacy fallback); explicit `dump.dir` wins.
 - Dump file names and manifests use the discovered project name.

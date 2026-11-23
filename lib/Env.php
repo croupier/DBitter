@@ -5,22 +5,22 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Парсер .env-файлов (KEY=VALUE) без подключения их как PHP-кода —
- * безопасно читает недоверенные конфиги. Используется экстракторами
- * conf/env.php и conf/laravel.php для извлечения параметров БД
- * (DB_HOST, DB_DATABASE и т.п.), которые затем нормализует Config.
+ * Parser for .env files (KEY=VALUE) that does not include them as PHP code —
+ * it safely reads untrusted configs. Used by the conf/env.php and
+ * conf/laravel.php config extractors to obtain the database credentials
+ * (DB_HOST, DB_DATABASE and the like), which Config then normalizes.
  */
 final class Env
 {
     /**
-     * Разбирает .env-файл в ассоциативный массив. Поддерживает комментарии
-     * (#), префикс export, одинарные/двойные кавычки и escape-последовательности
-     * в двойных кавычках; для значений без кавычек отрезает хвостовой
-     * комментарий вида " # ...". Это упрощённый парсер, не полный аналог
-     * dotenv: многострочные значения не поддерживаются.
+     * Parses a .env file into an associative array. Supports comments
+     * (#), the export prefix, single/double quotes and escape sequences
+     * inside double quotes; for unquoted values it strips the trailing
+     * comment of the form " # ...". This is a simplified parser, not a full
+     * dotenv equivalent: multiline values are not supported.
      *
-     * @param string $path Путь к .env-файлу.
-     * @return array<string,string> Пары ключ => значение; пустой массив, если файла нет.
+     * @param string $path Path to the .env file.
+     * @return array<string,string> key => value pairs; empty array if the file does not exist.
      */
     public static function parse(string $path): array
     {

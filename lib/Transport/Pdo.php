@@ -7,17 +7,17 @@ namespace DbTools\Transport;
 use DbTools\Lib\Sql;
 
 /**
- * Транспорт «pdo»: работа с MySQL без бинарников mysql/mysqldump — только
- * SQL-действия (create-db, create-user, drop-db, doctor) через PDO-соединение
- * из локального PHP. Экспорт/импорт дампов недоступен: mysqldump через PDO
- * не заменить, для них нужны транспорты local/wsl/docker/ssh.
+ * "pdo" transport: working with MySQL without the mysql/mysqldump binaries —
+ * SQL actions only (create-db, create-user, drop-db, doctor) over a PDO
+ * connection from the local PHP. Dump export/import is unavailable: mysqldump
+ * cannot be replaced through PDO; for that use the local/wsl/docker/ssh transports.
  */
 final class Pdo extends Transport
 {
     /**
-     * Имя транспорта для логов и диагностики.
+     * Transport name for logs and diagnostics.
      *
-     * @return string Всегда 'pdo'.
+     * @return string Always 'pdo'.
      */
     public function name(): string
     {
@@ -25,15 +25,15 @@ final class Pdo extends Transport
     }
 
     /**
-     * Запуск бинарников этим транспортом не поддерживается — намеренно
-     * бросает исключение с подсказкой, какие транспорты выбрать для
-     * экспорта/импорта. SQL-действия идут отдельным путём через Sql/PDO
-     * и этот метод не вызывают.
+     * Launching binaries is not supported by this transport — it deliberately
+     * throws an exception hinting which transports to pick for
+     * export/import. SQL actions take a separate path through Sql/PDO
+     * and never call this method.
      *
-     * @param list<string> $argv Аргументы команды (игнорируются).
-     * @param array<string,string> $env Переменные окружения (игнорируются).
-     * @return array{cmd:string|list<string>,env:array<string,string>} Никогда не возвращается.
-     * @throws \RuntimeException Всегда: target=pdo поддерживает только SQL-действия.
+     * @param list<string> $argv Command arguments (ignored).
+     * @param array<string,string> $env Environment variables (ignored).
+     * @return array{cmd:string|list<string>,env:array<string,string>} Never returns.
+     * @throws \RuntimeException Always: target=pdo supports SQL actions only.
      */
     public function launch(array $argv, array $env = []): array
     {
@@ -44,12 +44,13 @@ final class Pdo extends Transport
     }
 
     /**
-     * Диагностика: проверяет загруженное расширение pdo_mysql и реальное
-     * подключение к серверу. Соединение открывается БЕЗ выбора базы (null) —
-     * проверяется доступность сервера и реквизиты, а не существование БД.
-     * Версия сервера читается запросом SELECT VERSION().
+     * Diagnostics: checks that the pdo_mysql extension is loaded and that a
+     * real connection to the server can be made. The connection is opened WITHOUT
+     * selecting a database (null) — server availability and credentials are
+     * verified, not the existence of the DB. The server version is read with a
+     * SELECT VERSION() query.
      *
-     * @return array{ok:bool,info:string} ok — соединение установлено; info — версия сервера или сообщение об ошибке.
+     * @return array{ok:bool,info:string} ok — connection established; info — the server version or the error message.
      */
     public function doctor(): array
     {

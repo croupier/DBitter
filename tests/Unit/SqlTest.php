@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты SQL-хелперов DbTools\Lib\Sql: безопасное quoting
- * идентификаторов (ident), экранирование строковых литералов (quoteString)
- * и константа нормализации sql_mode. Это защита от SQL-инъекций в
- * админ-действиях (create-db/create-user/drop-db), где имена БД и
- * пользователей приходят из CLI/конфига и подставляются в SQL. Без БД.
+ * Unit tests for the SQL helpers in DbTools\Lib\Sql: safe identifier quoting
+ * (ident), string literal escaping (quoteString) and the sql_mode
+ * normalization constant. This is the defense against SQL injection in
+ * admin actions (create-db/create-user/drop-db), where DB and user names come
+ * from the CLI/config and are interpolated into SQL. No DB.
  */
 
 declare(strict_types=1);
@@ -17,15 +17,15 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверяет «белый список» имён и корректное экранирование строк —
- * любой обход этих проверок означал бы возможность инъекции в
+ * Verifies the name "allowlist" and correct string escaping —
+ * any bypass of these checks would mean a possible injection into
  * CREATE DATABASE / CREATE USER / DROP DATABASE.
  */
 final class SqlTest extends TestCase
 {
     /**
-     * Безопасные имена (буквы, цифры, '_', '$') оборачиваются в backtick
-     * без изменений — валидные MySQL-идентификаторы проходят как есть.
+     * Safe names (letters, digits, '_', '$') are wrapped in backticks
+     * unchanged — valid MySQL identifiers pass through as is.
      */
     public function testIdentAcceptsSafeNames(): void
     {
@@ -35,9 +35,9 @@ final class SqlTest extends TestCase
     }
 
     /**
-     * Опасные имена ОБЯЗАНЫ отклоняться исключением, а не «экранироваться»:
-     * пробелы, ';', backtick, кавычки и дефис позволяют вырваться из
-     * идентификатора и выполнить произвольный SQL (напр. db;DROP TABLE x).
+     * Dangerous names MUST be rejected with an exception, not "escaped":
+     * spaces, ';', backticks, quotes and the dash allow breaking out of the
+     * identifier and executing arbitrary SQL (e.g. db;DROP TABLE x).
      */
     #[DataProvider('unsafeIdents')]
     public function testIdentRejectsUnsafe(string $bad): void
@@ -47,7 +47,7 @@ final class SqlTest extends TestCase
     }
 
     /**
-     * Набор инъекционных/невалидных имён для testIdentRejectsUnsafe.
+     * Set of injection/invalid names for testIdentRejectsUnsafe.
      *
      * @return array<string,array{string}>
      */
@@ -64,9 +64,9 @@ final class SqlTest extends TestCase
     }
 
     /**
-     * quoteString экранирует одинарную кавычку и обратный слеш —
-     * строковый литерал (пароль в IDENTIFIED BY и т.п.) не может
-     * «закрыться» раньше времени и оборвать SQL.
+     * quoteString escapes the single quote and the backslash —
+     * a string literal (a password in IDENTIFIED BY etc.) cannot
+     * "close itself" prematurely and break the SQL.
      */
     public function testQuoteStringEscapesQuoteAndBackslash(): void
     {
@@ -76,11 +76,12 @@ final class SqlTest extends TestCase
     }
 
     /**
-     * NORMALIZE_SQL_MODE — сессионный SET SESSION sql_mode, УБИРАЮЩИЙ флаг
-     * NO_BACKSLASH_ESCAPES из режима сервера: quoteString экранирует '\'
-     * и кавычки обратным слешем (дефолтный стиль MySQL), и при включённом
-     * NO_BACKSLASH_ESCAPES такие литералы (пароли с кавычками) развалились
-     * бы или открыли инъекцию. Тест фиксирует оба компонента выражения.
+     * NORMALIZE_SQL_MODE is a SET SESSION sql_mode statement that REMOVES the
+     * NO_BACKSLASH_ESCAPES flag from the server mode: quoteString escapes '\'
+     * and quotes with a backslash (MySQL's default style), and with
+     * NO_BACKSLASH_ESCAPES enabled such literals (passwords containing quotes)
+     * would either break or open an injection. The test pins both components
+     * of the expression.
      */
     public function testNormalizeSqlModeTargetsBackslashEscapes(): void
     {

@@ -5,21 +5,21 @@ declare(strict_types=1);
 use DbTools\Lib\Env;
 
 /**
- * Универсальный экстрактор реквизитов БД из .env — без bootstrap фреймворка.
+ * Universal database credentials extractor from .env — without framework bootstrap.
  *
- * Понимает три стиля ключей: Laravel-овские DB_*, «голые» MYSQL_* и
- * DATABASE_URL (Symfony/Doctrine и др., схемы mysql/pgsql). Значения
- * DATABASE_URL имеют приоритет над отдельными ключами. Используется и как
- * fallback экстрактора laravel.php.
+ * Understands three key styles: Laravel-style DB_*, "bare" MYSQL_* and
+ * DATABASE_URL (Symfony/Doctrine etc., mysql/pgsql schemes). DATABASE_URL
+ * values take precedence over the individual keys. Also used as the
+ * fallback for the laravel.php extractor.
  */
 
 /**
- * Возвращает замыкание-экстрактор: opts (root, path) -> нормализованный
- * массив реквизитов БД, собранный из .env.
+ * Returns the extractor closure: opts (root, path) -> normalized
+ * database credentials array assembled from .env.
  *
- * @param array{root:string,path?:string} $opts Корень проекта и необязательный путь к .env (--config).
- * @return array<string,mixed> Нормализованные реквизиты БД.
- * @throws RuntimeException Если .env пуст/не распарсен или имя БД нигде не найдено.
+ * @param array{root:string,path?:string} $opts Project root and optional path to .env (--config).
+ * @return array<string,mixed> Normalized database credentials.
+ * @throws RuntimeException If .env is empty/unparsed or the database name was not found anywhere.
  */
 return static function (array $opts): array {
     $root = $opts['root'];

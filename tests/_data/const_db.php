@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Тестовая фикстура подключения к БД для экстрактора `const`.
- * Используется юнит-тестами (ExportArgsTest, TransportLaunchTest) и может
- * использоваться интеграционными: Config собирается с флагами
- * --conf=const --config=<этот файл> --target=<имя транспорта>.
- * Все значения вымышленные — реальной БД не касаются; пароль-фикстура
- * it_secret_pw нужен, чтобы проверять, что секрет НЕ попадает в argv.
+ * Test DB connection fixture for the `const` extractor.
+ * Used by unit tests (ExportArgsTest, TransportLaunchTest) and can also be
+ * used by integration ones: Config is built with the flags
+ * --conf=const --config=<this file> --target=<transport name>.
+ * All values are fictitious — they do not touch a real database; the fixture
+ * password it_secret_pw is needed to verify that the secret does NOT leak into argv.
  */
 
 declare(strict_types=1);

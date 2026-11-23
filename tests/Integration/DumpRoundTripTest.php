@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Интеграционный round-trip тест дампов: export → манифест → import
- * против живого MySQL (DBT_IT=1). Каждый тест работает в одноразовой
- * scratch-БД со случайным именем и во временном каталоге дампов, чтобы
- * не трогать рабочую базу проекта; tearDown гарантированно всё убирает.
- * Закрывает регрессию split-фикса: дамп меньше блока --split обязан
- * остаться единым файлом без артефактов .partNNN.
+ * Integration round-trip test of dumps: export → manifest → import
+ * against a live MySQL (DBT_IT=1). Each test works in a single-use
+ * scratch DB with a random name and in a temporary dump directory, so it
+ * does not touch the project's working database; tearDown guarantees everything is cleaned up.
+ * Covers the split-fix regression: a dump smaller than the --split block must
+ * remain a single file with no .partNNN artifacts.
  */
 
 declare(strict_types=1);
@@ -17,24 +17,25 @@ use DbTools\Lib\Dump;
 use DbTools\Lib\Fs;
 
 /**
- * Полный цикл выгрузки/загрузки дампа через реальный CLI.
- * Проверяет и успешность действий (exit-коды), и целостность результата:
- * манифест latest.json, число файлов, отсутствие лишних частей,
- * физическое существование архива и импорт в scratch-БД.
+ * Full dump upload/download cycle through the real CLI.
+ * Verifies both action success (exit codes) and result integrity:
+ * the latest.json manifest, file count, absence of extra parts,
+ * the physical existence of the archive and the import into the scratch DB.
  */
 final class DumpRoundTripTest extends IntegrationTestCase
 {
-    /** Имя одноразовой scratch-БД (пусто, пока setUp не отработал). */
+    /** Name of the single-use scratch DB (empty until setUp has run). */
     private string $scratch = '';
 
-    /** Временный каталог для дампов этого теста (изолирован от dump/ проекта). */
+    /** Temporary directory for this test's dumps (isolated from the project's dump/). */
     private string $dumpDir = '';
 
     /**
-     * Создаёт изолированное окружение: случайное имя scratch-БД
-     * (dbt_it_ + случайный hex — параллельные прогоны не конфликтуют),
-     * временный каталог дампов, затем реальные create-db и create-user
-     * через CLI. Падение на этом этапе — уже сигнал о поломке админ-действий.
+     * Creates the isolated environment: a random scratch-DB name
+     * (dbt_it_ + random hex — parallel runs do not collide),
+     * a temporary dump directory, then real create-db and create-user
+     * through the CLI. Failing at this stage is already a signal that
+     * the admin actions are broken.
      */
     protected function setUp(): void
     {
@@ -50,10 +51,10 @@ final class DumpRoundTripTest extends IntegrationTestCase
     }
 
     /**
-     * Уборка после теста, даже если он упал: удаляет scratch-БД
-     * (--yes — без интерактивного подтверждения, stdin у сабпроцесса пуст)
-     * и рекурсивно стирает временный каталог дампов. Никаких следов
-     * на живом сервере и в файловой системе остаться не должно.
+     * Cleanup after the test, even if it failed: drops the scratch DB
+     * (--yes — no interactive confirmation, the child process has empty stdin)
+     * and recursively wipes the temporary dump directory. No traces
+     * must remain on the live server or in the filesystem.
      */
     protected function tearDown(): void
     {
@@ -66,11 +67,11 @@ final class DumpRoundTripTest extends IntegrationTestCase
     }
 
     /**
-     * Сквозной цикл: export схемы рабочей БД → импорт в пустую scratch-БД.
-     * Проверяет, что schema-дамп — один файл без суффикса .part (нечего
-     * разбивать) и что импорт реально проходит против живого сервера.
-     * Регрессии: сломанный манифест, неверные аргументы клиента, ошибки
-     * транспорта при передаче SQL на stdin.
+     * End-to-end cycle: export the working DB's schema → import into an empty scratch DB.
+     * Verifies that the schema dump is a single file without a .part suffix (nothing to
+     * split) and that the import actually succeeds against the live server.
+     * Regressions: a broken manifest, wrong client arguments,
+     * transport errors when passing SQL over stdin.
      */
     public function testSchemaExportAndImportIntoScratch(): void
     {
@@ -86,10 +87,10 @@ final class DumpRoundTripTest extends IntegrationTestCase
     }
 
     /**
-     * Сквозной guard для split-фикса: полный дамп, заведомо меньший
-     * --split=1000 (MiB), должен остаться ЕДИНЫМ .sql.gz — без .partNNN
-     * ни в манифесте, ни на диске. Регрессия: раньше мелкие дампы получали
-     * лишний .part001, а оригинал удалялся, ломая импорт и манифест.
+     * End-to-end guard for the split-fix: a full dump knowingly smaller
+     * than --split=1000 (MiB) must remain a SINGLE .sql.gz — with no .partNNN
+     * in the manifest or on disk. Regression: previously small dumps got
+     * a spurious .part001 while the original was deleted, breaking import and the manifest.
      */
     public function testFullDumpUnderSplitStaysSingleFile(): void
     {
@@ -105,10 +106,10 @@ final class DumpRoundTripTest extends IntegrationTestCase
     }
 
     /**
-     * Читает манифест последнего дампа через latest.json (указатель,
-     * который export обновляет после каждой выгрузки).
+     * Reads the latest dump's manifest via latest.json (the pointer
+     * that export refreshes after every dump).
      *
-     * @return array<string,mixed> содержимое манифеста (kind, files, ...)
+     * @return array<string,mixed> manifest contents (kind, files, ...)
      */
     private function latestManifest(): array
     {

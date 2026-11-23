@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты парсера .env (DbTools\Lib\Env::parse): префикс export,
- * одинарные/двойные кавычки, escape-последовательности, комментарии
- * и пустые значения. Важно для экстракторов env/laravel: некорректный
- * разбор пароля с '#' или '\n' внутри кавычек ломал бы подключение к БД.
- * Работает на временных файлах, БД не нужна.
+ * Unit tests for the .env parser (DbTools\Lib\Env::parse): the export prefix,
+ * single/double quotes, escape sequences, comments, and empty values.
+ * Important for the env/laravel extractors: incorrectly parsing a password
+ * containing '#' or '\n' inside quotes would break the DB connection.
+ * Works on temporary files; no DB needed.
  */
 
 declare(strict_types=1);
@@ -16,15 +16,15 @@ use DbTools\Lib\Env;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверяет разбор всех типичных форм строк .env и безопасное поведение
- * на отсутствующем файле (пустой массив вместо исключения).
+ * Verifies parsing of all typical .env line formats and safe behavior
+ * for a missing file (empty array instead of an exception).
  */
 final class EnvTest extends TestCase
 {
-    /** Путь к временному .env текущего теста (убирается в tearDown). */
+    /** Path to the current test's temporary .env (removed in tearDown). */
     private string $file = '';
 
-    /** Удаляет временный .env, если тест его создал. */
+    /** Deletes the temporary .env if the test created one. */
     protected function tearDown(): void
     {
         if ($this->file !== '') {
@@ -33,11 +33,11 @@ final class EnvTest extends TestCase
     }
 
     /**
-     * Полный набор форматов: export-префикс снимается; двойные кавычки
-     * обрабатывают escape ('\n' → перевод строки), '#' внутри кавычек —
-     * часть значения; одинарные кавычки берутся буквально; хвостовой
-     * комментарий у значения без кавычек отбрасывается; пустые строки
-     * и комментарии не становятся ключами; EMPTY= даёт пустую строку.
+     * The full set of formats: the export prefix is stripped; double quotes
+     * process escapes ('\n' → newline), '#' inside quotes is part of the
+     * value; single quotes are taken literally; a trailing comment on an
+     * unquoted value is discarded; blank lines and comments do not become
+     * keys; EMPTY= yields an empty string.
      */
     public function testParseQuotesExportAndComments(): void
     {
@@ -64,8 +64,8 @@ final class EnvTest extends TestCase
     }
 
     /**
-     * Отсутствующий .env — не ошибка: parse() возвращает пустой массив,
-     * чтобы экстракторы могли мягко откатываться к другим источникам.
+     * A missing .env is not an error: parse() returns an empty array
+     * so extractors can gently fall back to other sources.
      */
     public function testParseMissingFileReturnsEmpty(): void
     {

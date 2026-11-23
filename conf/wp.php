@@ -5,22 +5,23 @@ declare(strict_types=1);
 use DbTools\Lib\Fs;
 
 /**
- * Экстрактор реквизитов БД из wp-config.php (WordPress).
+ * Database credentials extractor from wp-config.php (WordPress).
  *
- * По умолчанию файл ТОЛЬКО парсится лексером PHP (token_get_all) и никогда
- * не выполняется через require: безопасность прежде всего — wp-config.php
- * тянет за собой wp-settings.php и весь WordPress, а исполнять чужой код
- * ради четырёх констант недопустимо. Исключение — явный флаг --bootstrap:
- * тогда загружается wp-load.php и читаются «живые» константы.
+ * By default the file is ONLY parsed with the PHP lexer (token_get_all) and
+ * never executed via require: security first — wp-config.php pulls in
+ * wp-settings.php and the whole WordPress, and executing someone else's code
+ * for the sake of four constants is unacceptable. The sole exception is the
+ * explicit --bootstrap flag: then wp-load.php is loaded and the "live"
+ * constants are read.
  */
 
 /**
- * Возвращает замыкание-экстрактор: opts (root, path, bootstrap) -> нормализованный
- * массив реквизитов БД (engine/host/port/socket/user/pass/name/charset/prefix/...).
+ * Returns the extractor closure: opts (root, path, bootstrap) -> normalized
+ * database credentials array (engine/host/port/socket/user/pass/name/charset/prefix/...).
  *
- * @param array{root:string,path?:string,bootstrap?:bool} $opts Корень проекта, путь к конфигу, флаг bootstrap.
- * @return array<string,mixed> Нормализованные реквизиты БД.
- * @throws RuntimeException Если wp-config.php не найден или DB_NAME не распарсен.
+ * @param array{root:string,path?:string,bootstrap?:bool} $opts Project root, path to the config, bootstrap flag.
+ * @return array<string,mixed> Normalized database credentials.
+ * @throws RuntimeException If wp-config.php is not found or DB_NAME could not be parsed.
  */
 return static function (array $opts): array {
     $root = $opts['root'];
@@ -133,17 +134,17 @@ return static function (array $opts): array {
 };
 
 /**
- * Разбирает DB_HOST WordPress на host/port/socket.
+ * Parses the WordPress DB_HOST value into host/port/socket.
  *
- * Поддерживаются три формы, которые понимает mysqli WordPress:
- * - 'host:1234'   — хост и числовой порт;
- * - 'host:/path'  — хост и unix-сокет (часть после ':' не число);
- * - 'host'        — просто хост, порт по умолчанию 3306.
- * Пустое значение заменяется на 'localhost'; для сокета пустой хост тоже
- * трактуется как 'localhost'.
+ * The three forms understood by WordPress' mysqli are supported:
+ * - 'host:1234'   — host and numeric port;
+ * - 'host:/path'  — host and unix socket (the part after ':' is not a number);
+ * - 'host'        — plain host, default port 3306.
+ * An empty value is replaced with 'localhost'; for a socket, an empty host
+ * is also treated as 'localhost'.
  *
- * @param string $host Сырое значение DB_HOST.
- * @return array{host:string,port:int,socket:?string} Разобранные компоненты соединения.
+ * @param string $host Raw DB_HOST value.
+ * @return array{host:string,port:int,socket:?string} Parsed connection components.
  */
 function dbt_wp_parse_host(string $host): array
 {

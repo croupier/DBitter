@@ -8,16 +8,16 @@ use DbTools\Lib\Command;
 use DbTools\Lib\Fs;
 
 /**
- * Транспорт «local»: mysql/mysqldump запускаются напрямую на этой же машине
- * (например, бинарники из PATH или из набора Herd). Самый простой транспорт —
- * никакой обвязки, argv и env передаются процессу как есть.
+ * "local" transport: mysql/mysqldump are run directly on this same machine
+ * (e.g. binaries from PATH or from a Herd installation). The simplest transport —
+ * no wrapper at all, argv and env are passed to the process as-is.
  */
 final class Local extends Transport
 {
     /**
-     * Имя транспорта для логов и диагностики.
+     * Transport name for logs and diagnostics.
      *
-     * @return string Всегда 'local'.
+     * @return string Always 'local'.
      */
     public function name(): string
     {
@@ -25,14 +25,14 @@ final class Local extends Transport
     }
 
     /**
-     * Проброс команды без обёрток: массив-форма proc_open сама корректно
-     * экранирует аргументы на Windows, а env (включая MYSQL_PWD) передаётся
-     * процессу отдельно — пароль не оказывается ни в командной строке,
-     * ни в argv mysql/mysqldump.
+     * Passes the command through with no wrappers: the proc_open array form
+     * escapes arguments correctly on Windows by itself, and env (including
+     * MYSQL_PWD) is handed to the process separately — so the password ends
+     * up neither in the command line nor in the mysql/mysqldump argv.
      *
-     * @param list<string> $argv Аргументы команды, напр. ['mysqldump', 'db'].
-     * @param array<string,string> $env Переменные окружения (MYSQL_PWD и др.).
-     * @return array{cmd:string|list<string>,env:array<string,string>} cmd — исходный массив argv; env — исходный env.
+     * @param list<string> $argv Command arguments, e.g. ['mysqldump', 'db'].
+     * @param array<string,string> $env Environment variables (MYSQL_PWD etc.).
+     * @return array{cmd:string|list<string>,env:array<string,string>} cmd — the original argv array; env — the original env.
      */
     public function launch(array $argv, array $env = []): array
     {
@@ -40,11 +40,11 @@ final class Local extends Transport
     }
 
     /**
-     * Диагностика: проверяет наличие обоих бинарников (по PATH или по прямому
-     * пути из конфига), затем реально запускает `mysql --version` — это
-     * подтверждает, что бинарник не только найден, но и исполняется.
+     * Diagnostics: checks that both binaries exist (via PATH or a direct path
+     * from the config), then actually runs `mysql --version` — this confirms
+     * that the binary is not only found but also executable.
      *
-     * @return array{ok:bool,info:string} ok — успех проверки; info — версия mysql либо текст ошибки.
+     * @return array{ok:bool,info:string} ok — check succeeded; info — the mysql version or the error text.
      */
     public function doctor(): array
     {

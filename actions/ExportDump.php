@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие export: потоковый дамп MySQL через mysqldump в файл.
+ * export action: streaming MySQL dump via mysqldump into a file.
  *
- * Запуск: php start.php export [--kind=full|schema|data] [--compress=gzip|zstd|none]
+ * Run: php start.php export [--kind=full|schema|data] [--compress=gzip|zstd|none]
  * [--split=MiB] [--tables=...] [--ignore-table=db.tbl] [--where=...] [--extra=flag].
- * Дамп пишется сразу в сжатый поток (без промежуточного .sql), сопровождается
- * sha256-манифестом и latest.json; поддерживает разбиение на части и
- * retention-очистку старых дампов (--retention-keep/--retention-days).
+ * The dump is written straight into a compressed stream (no intermediate .sql),
+ * accompanied by a sha256 manifest and latest.json; supports splitting into
+ * parts and retention cleanup of old dumps (--retention-keep/--retention-days).
  */
 
 use DbTools\Lib\Command;
@@ -22,15 +22,15 @@ use DbTools\Lib\Log;
 use DbTools\Lib\Process;
 
 /**
- * Экспорт дампа БД: собирает аргументы mysqldump, читает его stdout потоком
- * и пишет на диск со сжатием, затем формирует манифест и обновляет latest.json.
+ * Database dump export: builds the mysqldump arguments, reads its stdout as a stream
+ * and writes it to disk with compression, then produces the manifest and updates latest.json.
  */
 final class ExportDump extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'export'
+     * @return string always 'export'
      */
     public function name(): string
     {
@@ -38,9 +38,9 @@ final class ExportDump extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -48,9 +48,9 @@ final class ExportDump extends Action
     }
 
     /**
-     * CLI-опции экспорта для справки/меню.
+     * Export CLI options for help/menu.
      *
-     * @return array<string,string> имя опции => описание
+     * @return array<string,string> option name => description
      */
     public function options(): array
     {
@@ -66,16 +66,16 @@ final class ExportDump extends Action
     }
 
     /**
-     * Основной сценарий экспорта: запуск mysqldump, потоковая запись файла,
-     * сжатие/разбиение, манифест с sha256, latest.json и retention-prune.
+     * Main export scenario: launching mysqldump, streaming the file write,
+     * compression/splitting, the sha256 manifest, latest.json and retention prune.
      *
-     * Побочные эффекты: создаёт каталог и файлы дампа/частей/манифеста в dumpDir,
-     * перезаписывает latest.json, при retention удаляет старые дампы; пишет в лог.
-     * БД только читается (mysqldump), при ошибке записи/дампа файл удаляется.
+     * Side effects: creates the dump/parts/manifest directory and files in dumpDir,
+     * overwrites latest.json, deletes old dumps when retention applies; writes to the log.
+     * The database is only read (mysqldump); on a write/dump error the file is deleted.
      *
-     * @param Config $cfg  конфигурация проекта/окружения и опции экспорта
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int 0 — успех (или dry-run), 1 — ошибка движка/записи/дампа/сжатия
+     * @param Config $cfg  project/environment configuration and export options
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int 0 — success (or dry-run), 1 — engine/write/dump/compression error
      */
     public function run(Config $cfg, array $opts): int
     {
@@ -236,13 +236,13 @@ final class ExportDump extends Action
     }
 
     /**
-     * Собирает полный argv mysqldump для заданного вида дампа.
-     * Публичный и общий с show-command: предпросмотр команды обязан совпадать
-     * с реальным запуском, поэтому логика сборки не дублируется.
+     * Builds the full mysqldump argv for the given dump kind.
+     * Public and shared with show-command: the command preview must match the
+     * actual run, so the build logic is not duplicated.
      *
-     * @param Config $cfg  конфигурация и опции (kind-зависимые флаги, where, extra)
-     * @param string $kind вид дампа: 'full' | 'schema' | 'data'
-     * @return list<string> аргументы mysqldump (без пароля — он в MYSQL_PWD)
+     * @param Config $cfg  configuration and options (kind-dependent flags, where, extra)
+     * @param string $kind dump kind: 'full' | 'schema' | 'data'
+     * @return list<string> mysqldump arguments (no password — it lives in MYSQL_PWD)
      */
     public function buildArgs(Config $cfg, string $kind): array
     {
@@ -322,13 +322,13 @@ final class ExportDump extends Action
     }
 
     /**
-     * Короткий git-хеш текущего HEAD для манифеста: привязывает дамп к версии
-     * кода проекта. Отсутствие git или ошибка запроса — не повод падать,
-     * поэтому возвращается null.
+     * Short git hash of the current HEAD for the manifest: ties the dump to the
+     * project's code version. Missing git or a failed query is no reason to fail,
+     * so null is returned instead.
      *
-     * Побочные эффекты: запускает внешний процесс git (только чтение).
+     * Side effects: runs the external git process (read-only).
      *
-     * @return string|null короткий хеш коммита или null, если git недоступен/не репозиторий
+     * @return string|null short commit hash, or null when git is unavailable/not a repository
      */
     private static function gitRev(): ?string
     {

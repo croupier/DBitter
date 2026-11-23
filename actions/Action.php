@@ -5,44 +5,44 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Базовый класс всех действий DBitter (php start.php <action>).
+ * Base class for all DBitter actions (php start.php <action>).
  *
- * Содержит общую инфраструктуру: выбор транспорта (local/ssh/wsl), сборку
- * аргументов mysql/mysqldump без пароля в argv, выполнение SQL от админа
- * или прикладного пользователя, режим --dry-run и единые коды возврата.
- * Конкретные сценарии (export, import, create-db и т.д.) наследуются от него.
+ * Holds the shared infrastructure: transport selection (local/ssh/wsl), building
+ * mysql/mysqldump argv without the password in argv, running SQL as admin or as
+ * the application user, the --dry-run mode and unified exit codes.
+ * Concrete scenarios (export, import, create-db, etc.) inherit from it.
  */
 
 use DbTools\Lib\Config;
 use DbTools\Transport\Transport;
 
 /**
- * Абстрактное действие CLI-инструмента.
+ * Abstract CLI-tool action.
  *
- * Определяет контракт (имя, заголовок, опции, запуск) и переиспользуемые
- * защищённые помощники для работы с MySQL через выбранный транспорт.
+ * Defines the contract (name, title, options, run) and reusable
+ * protected helpers for working with MySQL through the selected transport.
  */
 abstract class Action
 {
     /**
-     * Машинное имя действия для вызова из CLI: php start.php <name>.
+     * Machine name of the action for CLI invocation: php start.php <name>.
      *
-     * @return string уникальный идентификатор действия (например, 'export')
+     * @return string unique action identifier (for example, 'export')
      */
     abstract public function name(): string;
 
     /**
-     * Человекочитаемый заголовок для интерактивного меню и справки.
+     * Human-readable title for the interactive menu and help.
      *
-     * @return string описание действия одной строкой
+     * @return string one-line description of the action
      */
     abstract public function title(): string;
 
     /**
-     * Список поддерживаемых CLI-опций действия для справки/меню.
-     * По умолчанию опций нет; наследники переопределяют при необходимости.
+     * List of CLI options supported by the action for help/menu display.
+     * No options by default; subclasses override when needed.
      *
-     * @return array<string,string> имя опции => описание (для help/меню)
+     * @return array<string,string> option name => description (for help/menu)
      */
     public function options(): array
     {
@@ -50,20 +50,20 @@ abstract class Action
     }
 
     /**
-     * Точка входа действия: выполняет сценарий с учётом конфигурации и опций.
+     * Action entry point: runs the scenario taking configuration and options into account.
      *
-     * @param Config $cfg  загруженная конфигурация проекта/окружения
-     * @param array  $opts разобранные опции командной строки
-     * @return int код завершения процесса: 0 — успех, ненулевой — ошибка
+     * @param Config $cfg  loaded project/environment configuration
+     * @param array  $opts parsed command-line options
+     * @return int process exit code: 0 — success, non-zero — error
      */
     abstract public function run(Config $cfg, array $opts): int;
 
     /**
-     * Создаёт транспорт по конфигурации (local, ssh или wsl).
-     * Транспорт решает, где и как запускаются клиенты mysql/mysqldump.
+     * Creates the transport from the configuration (local, ssh or wsl).
+     * The transport decides where and how the mysql/mysqldump clients run.
      *
-     * @param Config $cfg конфигурация с параметрами подключения и транспорта
-     * @return Transport готовый транспорт для запуска клиентских команд
+     * @param Config $cfg configuration with connection and transport parameters
+     * @return Transport ready-to-use transport for launching client commands
      */
     protected function transport(Config $cfg): Transport
     {
@@ -71,15 +71,15 @@ abstract class Action
     }
 
     /**
-     * Базовый argv клиента mysql/mysqldump: бинарник, socket либо host:port,
-     * пользователь и кодировка соединения. Пароль сюда НИКОГДА не попадает —
-     * он передаётся через переменную окружения MYSQL_PWD, чтобы не светиться
-     * в argv и списке процессов системы.
+     * Base argv for the mysql/mysqldump client: binary, socket or host:port,
+     * user and connection charset. The password NEVER goes in here —
+     * it is passed via the MYSQL_PWD environment variable so it does not show up
+     * in argv or in the system process list.
      *
-     * @param Config      $cfg          конфигурация подключения к БД
-     * @param bool        $dump         true — собираем mysqldump, false — mysql
-     * @param string|null $userOverride подменить пользователя (например, на админа)
-     * @return list<string> аргументы команды без пароля
+     * @param Config      $cfg          database connection configuration
+     * @param bool        $dump         true — build mysqldump args, false — mysql
+     * @param string|null $userOverride substitute the user (for example, with the admin one)
+     * @return list<string> command arguments without the password
      */
     protected function clientBase(Config $cfg, bool $dump = false, ?string $userOverride = null): array
     {
@@ -109,18 +109,18 @@ abstract class Action
     }
 
     /**
-     * Выполняет SQL-стейтменты от админа (или прикладного пользователя).
-     * Если сервер доступен из локального PHP — работает через PDO; иначе
-     * подаёт SQL потоком в stdin клиента mysql через транспорт (ssh/wsl).
-     * Перед выполнением нормализует sql_mode, чтобы экранирование строк
-     * в Sql-хелперах гарантированно совпадало с ожиданиями сервера.
+     * Executes SQL statements as the admin (or as the application user).
+     * If the server is reachable from local PHP — works through PDO; otherwise
+     * feeds SQL as a stream into the mysql client's stdin via the transport (ssh/wsl).
+     * Before execution it normalizes sql_mode so that string escaping
+     * in the Sql helpers is guaranteed to match the server's expectations.
      *
-     * Побочные эффекты: изменяет состояние БД (DDL/DML), может писать в лог.
+     * Side effects: changes the database state (DDL/DML), may write to the log.
      *
-     * @param Config       $cfg        конфигурация подключения
-     * @param list<string> $statements SQL-стейтменты для последовательного выполнения
-     * @param bool         $useAdmin   true — реквизиты администратора, false — пользователя БД
-     * @return array{ok:bool,msg:string} ok — успех, msg — текст ошибки сервера (пусто при успехе)
+     * @param Config       $cfg        connection configuration
+     * @param list<string> $statements SQL statements to execute sequentially
+     * @param bool         $useAdmin   true — administrator credentials, false — database user's
+     * @return array{ok:bool,msg:string} ok — success, msg — server error text (empty on success)
      */
     protected function execSql(Config $cfg, array $statements, bool $useAdmin = true): array
     {
@@ -169,13 +169,13 @@ abstract class Action
     }
 
     /**
-     * Формирует окружение с паролем для клиента mysql/mysqldump.
-     * MYSQL_PWD — единственный канал передачи пароля: он не виден в argv,
-     * списке процессов и (после маскирования) в логах.
+     * Builds the environment with the password for the mysql/mysqldump client.
+     * MYSQL_PWD is the only channel for passing the password: it is invisible in argv,
+     * in the process list and (after masking) in the logs.
      *
-     * @param Config      $cfg  конфигурация (пароль пользователя БД по умолчанию)
-     * @param string|null $pass явный пароль (например, админский), если нужен не дефолтный
-     * @return array<string,string> переменные окружения для запуска процесса
+     * @param Config      $cfg  configuration (database user password by default)
+     * @param string|null $pass explicit password (for example, the admin one) when the default is not wanted
+     * @return array<string,string> environment variables for launching the process
      */
     protected function pwdEnv(Config $cfg, ?string $pass = null): array
     {
@@ -183,16 +183,16 @@ abstract class Action
     }
 
     /**
-     * Режим --dry-run: печатает команду вместо её выполнения.
-     * Показывает и внешний лаунчер (wsl.exe/ssh), и внутреннюю bash-команду;
-     * все секреты из конфигурации маскируются в выводе.
+     * --dry-run mode: prints the command instead of executing it.
+     * Shows both the outer launcher (wsl.exe/ssh) and the inner bash command;
+     * all secrets from the configuration are masked in the output.
      *
-     * Побочные эффекты: только вывод в лог, ничего не запускает.
+     * Side effects: log output only, launches nothing.
      *
-     * @param Config $cfg  конфигурация (флаг dry-run и список секретов)
-     * @param array  $argv аргументы клиентской команды
-     * @param array  $env  окружение (включая MYSQL_PWD)
-     * @return bool true — dry-run активен и команда показана (выполнять не нужно)
+     * @param Config $cfg  configuration (dry-run flag and secrets list)
+     * @param array  $argv client command arguments
+     * @param array  $env  environment (including MYSQL_PWD)
+     * @return bool true — dry-run is active and the command was printed (no need to execute)
      */
     protected function dryRun(Config $cfg, array $argv, array $env): bool
     {
@@ -211,12 +211,12 @@ abstract class Action
     }
 
     /**
-     * Завершает действие с ошибкой: пишет сообщение в лог уровня error.
+     * Finishes the action with an error: writes the message to the log at error level.
      *
-     * Побочные эффекты: вывод сообщения об ошибке в лог.
+     * Side effects: outputs the error message to the log.
      *
-     * @param string $msg текст ошибки для пользователя
-     * @return int всегда 1 — код неуспешного завершения для CLI
+     * @param string $msg error text for the user
+     * @return int always 1 — unsuccessful CLI exit code
      */
     protected function fail(string $msg): int
     {
@@ -225,12 +225,12 @@ abstract class Action
     }
 
     /**
-     * Завершает действие успехом: пишет итоговое сообщение в лог.
+     * Finishes the action with success: writes the final message to the log.
      *
-     * Побочные эффекты: вывод сообщения в лог уровня info.
+     * Side effects: outputs the message to the log at info level.
      *
-     * @param string $msg итоговое сообщение для пользователя
-     * @return int всегда 0 — код успешного завершения для CLI
+     * @param string $msg final message for the user
+     * @return int always 0 — successful CLI exit code
      */
     protected function ok(string $msg): int
     {

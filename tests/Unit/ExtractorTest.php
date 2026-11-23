@@ -1,11 +1,12 @@
 <?php
 
 /**
- * Юнит-тесты экстракторов параметров БД из конфигов приложения
- * (conf/env.php и conf/laravel.php). Проверяют разбор DATABASE_URL
- * (mysql/pgsql), классические ключи DB_*, дефолтный порт, ошибку при
- * отсутствии имени БД и откат Laravel-экстрактора к plain .env, когда
- * бутстрап приложения невозможен. Без БД — на временных .env-файлах.
+ * Unit tests for the DB parameter extractors that read application configs
+ * (conf/env.php and conf/laravel.php). They verify parsing of DATABASE_URL
+ * (mysql/pgsql), the classic DB_* keys, the default port, the error raised
+ * when the DB name is missing, and the Laravel extractor's fallback to plain
+ * .env when bootstrapping the application is impossible. No DB — runs on
+ * temporary .env files.
  */
 
 declare(strict_types=1);
@@ -15,25 +16,25 @@ namespace DbTools\Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Экстракторы — замыкания, возвращаемые файлами conf/*.php; здесь они
- * вызываются напрямую с массивом опций (root/path/bootstrap), как это
- * делает Config::resolveDb.
+ * The extractors are closures returned by the conf/*.php files; here they
+ * are invoked directly with an options array (root/path/bootstrap), the way
+ * Config::resolveDb does.
  */
 final class ExtractorTest extends TestCase
 {
-    /** Корень инструмента (DBitter) — от него грузятся conf/*.php. */
+    /** Tool root (DBitter) — conf/*.php is loaded relative to it. */
     private string $root;
 
-    /** Список временных .env-файлов, созданных тестом (для уборки). */
+    /** List of temporary .env files created by the test (for cleanup). */
     private array $files = [];
 
-    /** Вычисляет корень инструмента относительно каталога тестов. */
+    /** Computes the tool root relative to the tests directory. */
     protected function setUp(): void
     {
         $this->root = dirname(__DIR__, 2);
     }
 
-    /** Удаляет все временные .env-файлы теста. */
+    /** Deletes all of the test's temporary .env files. */
     protected function tearDown(): void
     {
         foreach ($this->files as $f) {
@@ -42,10 +43,10 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Хелпер: создаёт временный .env с заданным содержимым и запоминает
-     * его для удаления в tearDown.
+     * Helper: creates a temporary .env with the given content and remembers
+     * it for deletion in tearDown.
      *
-     * @return string путь к созданному файлу
+     * @return string path to the created file
      */
     private function envFile(string $content): string
     {
@@ -55,16 +56,16 @@ final class ExtractorTest extends TestCase
         return $p;
     }
 
-    /** Загружает замыкание-экстрактор conf/env.php. */
+    /** Loads the extractor closure from conf/env.php. */
     private function envExtractor(): \Closure
     {
         return require $this->root . '/conf/env.php';
     }
 
     /**
-     * DATABASE_URL=mysql://user:pass@host:port/db разбирается на все
-     * компоненты: engine/host/port(int)/user/pass/name. Формат типичен
-     * для PaaS и docker-окружений.
+     * DATABASE_URL=mysql://user:pass@host:port/db is parsed into all
+     * components: engine/host/port(int)/user/pass/name. The format is typical
+     * for PaaS and docker environments.
      */
     public function testEnvDatabaseUrlMysql(): void
     {
@@ -79,9 +80,9 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Схема postgres:// в DATABASE_URL распознаётся как engine=pgsql —
-     * инструмент должен явно сообщить о не-MySQL движке, а не молча
-     * пытаться подключиться mysql-клиентом.
+     * The postgres:// scheme in DATABASE_URL is recognized as engine=pgsql —
+     * the tool must explicitly report a non-MySQL engine instead of silently
+     * trying to connect with the mysql client.
      */
     public function testEnvDatabaseUrlPostgresDetected(): void
     {
@@ -92,8 +93,8 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Классические ключи Laravel-стиля DB_CONNECTION/DB_DATABASE/...
-     * читаются напрямую; без DB_PORT подставляется дефолт MySQL 3306.
+     * The classic Laravel-style DB_CONNECTION/DB_DATABASE/... keys are read
+     * directly; without DB_PORT the MySQL default 3306 is substituted.
      */
     public function testEnvDbKeysAndDefaultPort(): void
     {
@@ -106,8 +107,9 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Без имени БД экстрактор обязан бросить RuntimeException —
-     * молча выгружать «непонятно что» нельзя (лучше явный отказ).
+     * Without a DB name the extractor must throw a RuntimeException —
+     * silently dumping "something unknown" is not acceptable (an explicit
+     * refusal is better).
      */
     public function testEnvThrowsWithoutDatabaseName(): void
     {
@@ -117,8 +119,8 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Laravel-экстрактор при bootstrap=false не пытается загружать
-     * приложение и сразу читает .env через env-экстрактор.
+     * With bootstrap=false the Laravel extractor does not attempt to load the
+     * application and reads .env straight away via the env extractor.
      */
     public function testLaravelFallsBackToEnvWhenBootstrapDisabled(): void
     {
@@ -129,9 +131,10 @@ final class ExtractorTest extends TestCase
     }
 
     /**
-     * Даже с bootstrap=true, если под root нет bootstrap/app.php или
-     * vendor/autoload.php (приложение не установлено), бутстрап невозможен —
-     * экстрактор обязан откатиться к разбору plain .env, а не упасть.
+     * Even with bootstrap=true, if bootstrap/app.php or vendor/autoload.php
+     * is missing under root (application not installed), bootstrapping is
+     * impossible — the extractor must fall back to parsing plain .env instead
+     * of crashing.
      */
     public function testLaravelFallsBackToEnvWhenNoVendor(): void
     {

@@ -7,17 +7,17 @@ namespace DbTools\Transport;
 use DbTools\Lib\Fs;
 
 /**
- * Транспорт «docker»: mysql/mysqldump выполняются внутри контейнера через
- * `docker exec` (по имени контейнера) или `docker compose exec` (по имени
- * сервиса). Команда доставляется оболочкой контейнера (bash либо sh),
- * env сворачивается в bash-строку — пароль не попадает в argv docker.
+ * "docker" transport: mysql/mysqldump run inside a container via
+ * `docker exec` (by container name) or `docker compose exec` (by service
+ * name). The command is delivered by the container shell (bash or sh),
+ * env is folded into a bash string — the password never enters docker's argv.
  */
 final class Docker extends Transport
 {
     /**
-     * Имя транспорта для логов и диагностики.
+     * Transport name for logs and diagnostics.
      *
-     * @return string Всегда 'docker'.
+     * @return string Always 'docker'.
      */
     public function name(): string
     {
@@ -25,11 +25,11 @@ final class Docker extends Transport
     }
 
     /**
-     * PDO из локального PHP не используется: сервер живёт внутри контейнера,
-     * порт наружу может быть не проброшен. SQL-действия идут через launch()
-     * и бинарник mysql в контейнере.
+     * PDO from the local PHP is not used: the server lives inside the container,
+     * and the outward-facing port may not be published. SQL actions go through
+     * launch() and the mysql binary in the container.
      *
-     * @return bool Всегда false.
+     * @return bool Always false.
      */
     public function pdoReachable(): bool
     {
@@ -37,20 +37,20 @@ final class Docker extends Transport
     }
 
     /**
-     * Собирает обвязку запуска: два режима по конфигу транспорта.
+     * Builds the launch wrapper: two modes driven by the transport config.
      *
-     * 1) Задан service — `docker compose [-f compose_file] exec -T <service> <shell> -c`:
-     *    удобно, когда контейнер описан в compose-проекте; compose_file позволяет
-     *    указать нестандартный файл. Флаг -T отключает псевдо-TTY (неинтерактивный
-     *    запуск, stdin свободен для SQL при импорте).
-     * 2) Задан container — `docker exec -i <container> <shell> -c`: прямой запуск
-     *    по имени/ID контейнера; -i держит stdin открытым для импорта дампа.
+     * 1) service is set — `docker compose [-f compose_file] exec -T <service> <shell> -c`:
+     *    convenient when the container is defined in a compose project; compose_file lets
+     *    you point at a non-standard file. The -T flag disables the pseudo-TTY (non-interactive
+     *    launch, stdin stays free for SQL during import).
+     * 2) container is set — `docker exec -i <container> <shell> -c`: direct launch
+     *    by container name/ID; -i keeps stdin open for dump import.
      *
-     * Оболочка настраивается ключом transport.shell: часть MySQL-образов
-     * поставляется без bash, для них задают 'sh'.
+     * The shell is configured via the transport.shell key: some MySQL images
+     * ship without bash, for which you set 'sh'.
      *
-     * @return list<string> Аргументы обвязки; последним идёт '-c', после которого launch() добавит bash-строку.
-     * @throws \RuntimeException Если не заданы ни container, ни service.
+     * @return list<string> Wrapper arguments; '-c' comes last, and launch() appends the bash string after it.
+     * @throws \RuntimeException If neither container nor service is set.
      */
     private function launcher(): array
     {
@@ -78,14 +78,14 @@ final class Docker extends Transport
     }
 
     /**
-     * Оборачивает команду целевой стороны в запуск внутри контейнера.
-     * Env (включая MYSQL_PWD) сворачивается в строку `<shell> -c`: переменные
-     * окружения локального процесса не проникают через границу docker exec, поэтому
-     * пароль передаётся присваиванием внутри bash-строки, а не в argv docker.
+     * Wraps the target-side command into a launch inside the container.
+     * Env (including MYSQL_PWD) is folded into the `<shell> -c` string: local
+     * process environment variables do not cross the docker exec boundary, so
+     * the password is passed as an assignment inside the bash string, not in docker's argv.
      *
-     * @param list<string> $argv Аргументы команды внутри контейнера.
-     * @param array<string,string> $env Переменные окружения для команды в контейнере.
-     * @return array{cmd:string|list<string>,env:array<string,string>} Массив-команда для proc_open; env пуст.
+     * @param list<string> $argv Command arguments inside the container.
+     * @param array<string,string> $env Environment variables for the command in the container.
+     * @return array{cmd:string|list<string>,env:array<string,string>} Array command for proc_open; env is empty.
      */
     public function launch(array $argv, array $env = []): array
     {
@@ -93,11 +93,11 @@ final class Docker extends Transport
     }
 
     /**
-     * Диагностика: наличие бинарника docker на локальной машине, затем
-     * probe `mysql --version` внутри контейнера — заодно проверяется, что
-     * контейнер запущен и обвязка exec работает.
+     * Diagnostics: presence of the docker binary on the local machine, then a
+     * `mysql --version` probe inside the container — which also verifies that
+     * the container is running and the exec wrapper works.
      *
-     * @return array{ok:bool,info:string} ok — транспорт готов; info — версия mysql или текст ошибки.
+     * @return array{ok:bool,info:string} ok — transport is ready; info — the mysql version or the error text.
      */
     public function doctor(): array
     {

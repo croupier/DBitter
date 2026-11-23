@@ -5,39 +5,39 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Потоковая обёртка над proc_open для передачи больших объёмов данных
- * (дампы БД) без загрузки в память. Одновременно жив только ОДИН канал:
- * stdout в режиме 'read' (mysqldump -> PHP) или stdin в режиме 'write'
- * (PHP -> mysql); вторая сторона вывода направлена во временный файл.
- * Это исключает взаимную блокировку (deadlock) на заполненных буферах
- * каналов: родителю не нужно одновременно читать и писать. Используется
- * транспортами; результат завершения — Result, окружение — Command::mergeEnv.
+ * Streaming wrapper over proc_open for transferring large amounts of data
+ * (DB dumps) without loading them into memory. Only ONE channel is live at
+ * a time: stdout in 'read' mode (mysqldump -> PHP) or stdin in 'write' mode
+ * (PHP -> mysql); the other output side is redirected to a temp file.
+ * This rules out mutual blocking (deadlock) on full channel buffers: the
+ * parent never needs to read and write simultaneously. Used by the
+ * transports; the completion result is a Result, the environment — Command::mergeEnv.
  */
 final class Process
 {
-    /** @var resource Handle процесса от proc_open. */
+    /** @var resource Process handle from proc_open. */
     private $proc;
-    /** @var resource|null Единственный живой канал (stdout или stdin); null после finish(). */
+    /** @var resource|null The only live channel (stdout or stdin); null after finish(). */
     private $pipe = null;
-    /** @var string Временный файл для stdout (заполняется только в режиме 'write'). */
+    /** @var string Temp file for stdout (only filled in 'write' mode). */
     private string $outFile;
-    /** @var string Временный файл для stderr — читается после завершения в любом режиме. */
+    /** @var string Temp file for stderr — read after completion in either mode. */
     private string $errFile;
-    /** @var float Момент старта (microtime) для подсчёта длительности в Result. */
+    /** @var float Start moment (microtime) for computing duration in Result. */
     private float $start;
-    /** @var string|list<string> Исходная команда — для отображения в Result. */
+    /** @var string|list<string> Original command — for display in Result. */
     private string|array $cmd;
 
     /**
-     * Запускает процесс в одном из двух потоковых режимов.
+     * Starts a process in one of the two streaming modes.
      *
-     * Побочные эффекты: создаёт два временных файла (stdout/stderr) в
-     * Fs::tempDir(); они удаляются в finish() или при неудачном запуске.
+     * Side effects: creates two temp files (stdout/stderr) in Fs::tempDir();
+     * they are deleted in finish() or on a failed start.
      *
-     * @param string|list<string> $cmd Команда proc_open (строка => шелл, массив => без шелла).
-     * @param array<string,string> $env Добавления к окружению (например, MYSQL_PWD).
-     * @param 'read'|'write' $mode 'read' — читаем stdout ребёнка; 'write' — пишем в его stdin.
-     * @throws \RuntimeException Если proc_open не смог запустить процесс.
+     * @param string|list<string> $cmd proc_open command (string => shell, array => no shell).
+     * @param array<string,string> $env Additions to the environment (e.g. MYSQL_PWD).
+     * @param 'read'|'write' $mode 'read' — read the child's stdout; 'write' — write to its stdin.
+     * @throws \RuntimeException If proc_open failed to start the process.
      */
     public function __construct(string|array $cmd, array $env, string $mode)
     {
@@ -85,10 +85,10 @@ final class Process
     }
 
     /**
-     * Отдаёт живой канал для потокового чтения/записи (fread/fwrite и т.п.).
+     * Returns the live channel for streaming reads/writes (fread/fwrite, etc.).
      *
-     * @return resource Канал stdout (режим 'read') или stdin (режим 'write').
-     * @throws \RuntimeException Если канал уже закрыт через finish().
+     * @return resource The stdout channel ('read' mode) or stdin ('write' mode).
+     * @throws \RuntimeException If the channel was already closed via finish().
      */
     public function stream()
     {
@@ -99,14 +99,14 @@ final class Process
     }
 
     /**
-     * Завершает процесс: закрывает живой канал (для ребёнка это EOF),
-     * ждёт завершения через proc_close, собирает вывод из временных
-     * файлов и удаляет их.
+     * Finishes the process: closes the live channel (which is EOF for the
+     * child), waits for completion via proc_close, collects the output from
+     * the temp files and deletes them.
      *
-     * Побочные эффекты: удаляет оба временных файла; повторный вызов
-     * небезопасен (процесс уже закрыт).
+     * Side effects: deletes both temp files; calling this again is unsafe
+     * (the process is already closed).
      *
-     * @return Result Код возврата, накопленные stdout/stderr, команда и время.
+     * @return Result Exit code, accumulated stdout/stderr, command and elapsed time.
      */
     public function finish(): Result
     {

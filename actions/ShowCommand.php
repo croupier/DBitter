@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие show-command: предпросмотр реальных команд mysql/mysqldump.
+ * show-command action: preview of the real mysql/mysqldump commands.
  *
- * Запуск: php start.php show-command [--kind=full|schema|data].
- * Печатает внутренние bash-команды дампа/импорта и внешние лаунчеры
- * транспорта (wsl.exe/ssh) с замаскированными секретами. Ничего не выполняет
- * и не подключается к серверу — удобно для отладки конфигурации и транспорта.
+ * Run: php start.php show-command [--kind=full|schema|data].
+ * Prints the inner bash commands for dump/import and the transport launchers
+ * (wsl.exe/ssh) with masked secrets. Executes nothing and connects to no
+ * server — handy for debugging the configuration and the transport.
  */
 
 use DbTools\Lib\Command;
@@ -18,15 +18,15 @@ use DbTools\Lib\Config;
 use DbTools\Lib\Menu;
 
 /**
- * Диагностическое действие: показывает, какие команды были бы запущены
- * экспортом и импортом при текущей конфигурации, без их выполнения.
+ * Diagnostic action: shows which commands the export and import would run
+ * under the current configuration, without executing them.
  */
 final class ShowCommand extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'show-command'
+     * @return string always 'show-command'
      */
     public function name(): string
     {
@@ -34,9 +34,9 @@ final class ShowCommand extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -44,15 +44,15 @@ final class ShowCommand extends Action
     }
 
     /**
-     * Печатает команды дампа и импорта: внутреннюю (bash внутри транспорта)
-     * и внешний лаунчер, а также напоминание о передаче пароля через MYSQL_PWD.
+     * Prints the dump and import commands: the inner one (bash inside the transport)
+     * and the outer launcher, plus a reminder that the password goes via MYSQL_PWD.
      *
-     * Побочные эффекты: только вывод через Menu; ни процессы клиентов,
-     * ни подключения к БД не выполняются, файлы не создаются.
+     * Side effects: output through Menu only; no client processes,
+     * no database connections are started and no files are created.
      *
-     * @param Config $cfg  конфигурация проекта/окружения (опция kind влияет на дамп)
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int всегда 0 — предпросмотр не может «провалиться»
+     * @param Config $cfg  project/environment configuration (the kind option affects the dump)
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int always 0 — a preview cannot "fail"
      */
     public function run(Config $cfg, array $opts): int
     {

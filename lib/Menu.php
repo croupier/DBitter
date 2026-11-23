@@ -5,20 +5,20 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Интерактивное консольное меню: вывод строк, вопрос со значением по
- * умолчанию, подтверждение да/нет (с русскими "д/да") и выбор из списка
- * опций по номеру или ключу. Все методы работают через STDIN/STDOUT и
- * корректно ведут себя при неинтерактивном stdin (pipe/EOF): возвращают
- * значения по умолчанию вместо зависания или бесконечного цикла.
- * Используется интерактивным режимом start.php и действиями.
+ * Interactive console menu: printing lines, a question with a default value,
+ * a yes/no confirmation (accepting the Russian "д/да") and choosing from a
+ * list of options by number or key. All methods work through STDIN/STDOUT
+ * and behave correctly with non-interactive stdin (pipe/EOF): they return
+ * default values instead of hanging or looping forever. Used by the
+ * interactive mode of start.php and the actions.
  */
 final class Menu
 {
     /**
-     * Печатает строку в STDOUT с переводом строки (по умолчанию — пустую,
-     * для визуального разделения блоков меню).
+     * Prints a line to STDOUT with a newline (empty by default,
+     * to visually separate menu blocks).
      *
-     * @param string $text Текст строки.
+     * @param string $text Line text.
      */
     public static function line(string $text = ''): void
     {
@@ -26,13 +26,13 @@ final class Menu
     }
 
     /**
-     * Задаёт вопрос и читает ответ из STDIN. Пустой ответ (или EOF)
-     * означает значение по умолчанию; непустой default показывается
-     * в подсказке как "[default]".
+     * Asks a question and reads the answer from STDIN. An empty answer (or EOF)
+     * means the default value; a non-empty default is shown in the prompt
+     * as "[default]".
      *
-     * @param string $prompt Текст вопроса (без двоеточия).
-     * @param string|null $default Значение по умолчанию; null трактуется как ''.
-     * @return string Ответ пользователя либо default.
+     * @param string $prompt Question text (without the colon).
+     * @param string|null $default Default value; null is treated as ''.
+     * @return string The user's answer or default.
      */
     public static function ask(string $prompt, ?string $default = null): string
     {
@@ -49,13 +49,13 @@ final class Menu
     }
 
     /**
-     * Вопрос да/нет. Подсказка Y/n или y/N показывает, какой ответ
-     * примется при пустом вводе. Понимает английские y/yes и русские
-     * д/да (регистр не важен); всё остальное — "нет".
+     * Yes/no question. The Y/n or y/N hint shows which answer is taken
+     * on empty input. Understands the English y/yes and the Russian д/да
+     * (case-insensitive); anything else means "no".
      *
-     * @param string $prompt Текст вопроса.
-     * @param bool $default Ответ при пустом вводе или EOF stdin.
-     * @return bool true, если пользователь согласился.
+     * @param string $prompt Question text.
+     * @param bool $default Answer on empty input or stdin EOF.
+     * @return bool true if the user agreed.
      */
     public static function confirm(string $prompt, bool $default = true): bool
     {
@@ -74,15 +74,15 @@ final class Menu
     }
 
     /**
-     * Рисует нумерованный список опций и запрашивает выбор: принимается
-     * номер пункта (1..N) или сам ключ опции. Пункт по умолчанию помечается
-     * '*' и предлагается как default в ask(). Некорректный ввод приводит
-     * к повторному запросу.
+     * Renders a numbered list of options and asks for a choice: accepted are
+     * the item number (1..N) or the option key itself. The default item is
+     * marked with '*' and offered as the default in ask(). Invalid input
+     * causes the prompt to repeat.
      *
-     * @param string $title Заголовок меню.
-     * @param array<string,string> $options Карта ключ => подпись пункта.
-     * @param string|null $default Ключ пункта по умолчанию (или null).
-     * @return string Выбранный ключ; при EOF — default, первый ключ или ''.
+     * @param string $title Menu title.
+     * @param array<string,string> $options Map of key => item label.
+     * @param string|null $default Key of the default item (or null).
+     * @return string The chosen key; on EOF — default, the first key or ''.
      */
     public static function choice(string $title, array $options, ?string $default = null): string
     {

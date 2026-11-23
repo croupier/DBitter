@@ -5,21 +5,21 @@ declare(strict_types=1);
 namespace DbTools\Lib;
 
 /**
- * Работа с файлами дампов: имена и расширения (none/gzip/zstd), потоковые
- * handle чтения/записи, сжатие/распаковка zstd внешним бинарником, нарезка
- * на части и склейка, sha256-контрольные суммы, JSON-манифесты (состав,
- * размеры, хэши) и указатель latest.json, а также ротация старых дампов
- * (prune). Используется действиями export/import; файловые операции —
- * через Fs, запуск zstd — через Command::capture.
+ * Work with dump files: names and extensions (none/gzip/zstd), streaming
+ * read/write handles, compression/decompression via the external zstd binary, splitting
+ * into parts and reassembly, sha256 checksums, JSON manifests (contents,
+ * sizes, hashes) and the latest.json pointer, plus rotation of old dumps
+ * (prune). Used by the export/import actions; file operations go
+ * through Fs, zstd execution through Command::capture.
  */
 final class Dump
 {
     /**
-     * Определяет алгоритм сжатия по расширению файла — чтобы импорт знал,
-     * как читать дамп, независимо от того, что записано в манифесте.
+     * Determines the compression algorithm from a file extension — so that import knows
+     * how to read the dump, regardless of what the manifest says.
      *
-     * @param string $path Путь к файлу дампа.
-     * @return string 'gzip' (.gz), 'zstd' (.zst) или 'none'.
+     * @param string $path Path to the dump file.
+     * @return string 'gzip' (.gz), 'zstd' (.zst) or 'none'.
      */
     public static function algoFromFile(string $path): string
     {
@@ -31,10 +31,10 @@ final class Dump
     }
 
     /**
-     * Расширение файла дампа для выбранного алгоритма сжатия.
+     * Dump file extension for the selected compression algorithm.
      *
-     * @param string $algo 'gzip', 'zstd' или иное (без сжатия).
-     * @return string '.sql.gz', '.sql.zst' или '.sql'.
+     * @param string $algo 'gzip', 'zstd' or anything else (no compression).
+     * @return string '.sql.gz', '.sql.zst' or '.sql'.
      */
     public static function extension(string $algo): string
     {
@@ -46,15 +46,15 @@ final class Dump
     }
 
     /**
-     * Строит базовое имя дампа вида "проект__окружение__тип__метка-времени".
-     * Каждый компонент прогоняется через slug: любые символы вне
-     * [A-Za-z0-9_.-] заменяются на '-', чтобы имя было безопасно для любой
-     * ФС и шелла. Метка времени уникальна (dbt_now, случайный суффикс).
+     * Builds a base dump name of the form "project__environment__kind__timestamp".
+     * Each component is passed through a slug filter: any character outside
+     * [A-Za-z0-9_.-] is replaced with '-', so the name is safe for any
+     * filesystem and shell. The timestamp is unique (dbt_now, random suffix).
      *
-     * @param string $project Имя проекта.
-     * @param string $env Окружение (local/wsl/...).
-     * @param string $kind Тип дампа (например, full/db).
-     * @return string Базовое имя без расширения.
+     * @param string $project Project name.
+     * @param string $env Environment (local/wsl/...).
+     * @param string $kind Dump kind (for example, full/db).
+     * @return string Base name without extension.
      */
     public static function baseName(string $project, string $env, string $kind): string
     {
@@ -63,16 +63,16 @@ final class Dump
     }
 
     /**
-     * Открывает дамп на запись в бинарном потоковом режиме; для gzip —
-     * через gzopen с уровнем 6 (компромисс скорость/размер), иначе обычный
-     * fopen. Каталог создаётся при необходимости.
+     * Opens a dump for writing in binary streaming mode; for gzip via
+     * gzopen with level 6 (a speed/size trade-off), otherwise plain
+     * fopen. The directory is created when needed.
      *
-     * Побочные эффекты: создаёт каталог и файл дампа.
+     * Side effects: creates the directory and the dump file.
      *
-     * @param string $path Путь файла дампа.
-     * @param string $algo Алгоритм: 'gzip' или прочее (без сжатия).
-     * @return resource Handle для fwrite/gzwrite.
-     * @throws \RuntimeException Если файл не открылся на запись.
+     * @param string $path Dump file path.
+     * @param string $algo Algorithm: 'gzip' or other (no compression).
+     * @return resource Handle for fwrite/gzwrite.
+     * @throws \RuntimeException If the file cannot be opened for writing.
      */
     public static function writeHandle(string $path, string $algo)
     {
@@ -85,14 +85,14 @@ final class Dump
     }
 
     /**
-     * Открывает дамп на чтение: gzip — через gzopen (прозрачная распаковка
-     * при чтении), прочее — fopen. Бинарный режим обязателен на Windows,
-     * чтобы не искажались байты 0x0A/0x1A.
+     * Opens a dump for reading: gzip via gzopen (transparent decompression
+     * while reading), anything else with fopen. Binary mode is mandatory on Windows
+     * so that the 0x0A/0x1A bytes are not mangled.
      *
-     * @param string $path Путь файла дампа.
-     * @param string $algo Алгоритм: 'gzip' или прочее (без сжатия).
-     * @return resource Handle для fread/gzread.
-     * @throws \RuntimeException Если файл не открылся на чтение.
+     * @param string $path Dump file path.
+     * @param string $algo Algorithm: 'gzip' or other (no compression).
+     * @return resource Handle for fread/gzread.
+     * @throws \RuntimeException If the file cannot be opened for reading.
      */
     public static function readHandle(string $path, string $algo)
     {
@@ -104,17 +104,17 @@ final class Dump
     }
 
     /**
-     * Сжимает готовый .sql-файл внешним zstd (в PHP нет встроенной поддержки
-     * zstd). Флаги: -q тихо, -f перезаписать, --rm удалить исходник после
-     * успешного сжатия, -o — имя результата. Уровень по умолчанию 19 —
-     * максимальное сжатие ценой времени (дампы хранятся долго).
+     * Compresses a finished .sql file with the external zstd (PHP has no built-in
+     * zstd support). Flags: -q quiet, -f overwrite, --rm remove the source after
+     * successful compression, -o — the result name. The default level is 19,
+     * i.e. maximum compression at the cost of time (dumps are kept for a long time).
      *
-     * Побочные эффекты: создаёт файл "<path>.zst", удаляет исходный .sql.
+     * Side effects: creates the file "<path>.zst" and deletes the original .sql.
      *
-     * @param string $plainPath Путь несжатого .sql.
-     * @param int $level Уровень сжатия zstd (1..19+).
-     * @return string Путь созданного .zst-файла.
-     * @throws \RuntimeException Если бинарник zstd не найден или сжатие упало.
+     * @param string $plainPath Path to the uncompressed .sql.
+     * @param int $level zstd compression level (1..19+).
+     * @return string Path to the created .zst file.
+     * @throws \RuntimeException If the zstd binary is not found or compression failed.
      */
     public static function compressZstd(string $plainPath, int $level = 19): string
     {
@@ -131,15 +131,15 @@ final class Dump
     }
 
     /**
-     * Распаковывает .zst во временный .sql-файл со случайным именем
-     * (импорт читает его потоково; параллельные импорты не столкнутся).
-     * Исходный .zst НЕ удаляется — вызывающий сам уберёт временный файл.
+     * Decompresses a .zst into a temporary .sql file with a random name
+     * (import reads it as a stream; parallel imports will not collide).
+     * The source .zst is NOT deleted — the caller removes the temporary file itself.
      *
-     * Побочные эффекты: создаёт временный файл в Fs::tempDir().
+     * Side effects: creates a temporary file in Fs::tempDir().
      *
-     * @param string $zstPath Путь сжатого дампа.
-     * @return string Путь распакованного временного .sql.
-     * @throws \RuntimeException Если zstd не найден или распаковка упала.
+     * @param string $zstPath Path to the compressed dump.
+     * @return string Path to the decompressed temporary .sql.
+     * @throws \RuntimeException If zstd is not found or decompression failed.
      */
     public static function decompressZstd(string $zstPath): string
     {
@@ -156,17 +156,17 @@ final class Dump
     }
 
     /**
-     * Режет файл на части по partBytes байт: "<path>.part001", ".part002"...
-     * Нужно для переноса дампов через ограничители размера (почта, файлообмен).
-     * Копирование идёт кусками по 8 КБ — память не растёт с размером дампа.
+     * Cuts a file into parts of partBytes bytes each: "<path>.part001", ".part002"...
+     * Needed to transfer dumps past size limits (email, file sharing).
+     * Copying proceeds in 8 KB chunks — memory does not grow with dump size.
      *
-     * Побочные эффекты: создаёт файлы частей и УДАЛЯЕТ исходный файл
-     * (кроме случаев, когда нарезка не выполнялась).
+     * Side effects: creates the part files and DELETES the source file
+     * (except when no splitting was performed).
      *
-     * @param string $path Путь исходного файла.
-     * @param int $partBytes Максимальный размер части в байтах; <=0 — не резать.
-     * @return list<string> Пути частей по порядку (или [исходный путь]).
-     * @throws \RuntimeException Если исходный файл или часть не открывается.
+     * @param string $path Path to the source file.
+     * @param int $partBytes Maximum part size in bytes; <=0 means don't split.
+     * @return list<string> Part paths in order (or [the original path]).
+     * @throws \RuntimeException If the source file or a part cannot be opened.
      */
     public static function splitFile(string $path, int $partBytes): array
     {
@@ -222,14 +222,14 @@ final class Dump
     }
 
     /**
-     * Склеивает части (в переданном порядке) в один файл — обратная операция
-     * к splitFile при импорте. Потоковое копирование по 8 КБ.
+     * Concatenates the parts (in the given order) into a single file — the inverse operation
+     * of splitFile during import. Streaming copy in 8 KB chunks.
      *
-     * Побочные эффекты: создаёт/перезаписывает файл dest; части не удаляются.
+     * Side effects: creates/overwrites the file dest; the parts are not deleted.
      *
-     * @param list<string> $parts Пути частей по порядку (.part001, .part002...).
-     * @param string $dest Путь результирующего файла.
-     * @throws \RuntimeException Если не открыть dest на запись или часть на чтение.
+     * @param list<string> $parts Part paths in order (.part001, .part002...).
+     * @param string $dest Path to the resulting file.
+     * @throws \RuntimeException If dest cannot be opened for writing or a part for reading.
      */
     public static function joinFiles(array $parts, string $dest): void
     {
@@ -255,12 +255,12 @@ final class Dump
     }
 
     /**
-     * sha256 файла — контрольная сумма для манифеста и проверки целостности
-     * при импорте (hash_file читает потоково, память не растёт).
+     * sha256 of a file — the checksum used in the manifest and for integrity
+     * verification on import (hash_file reads as a stream, so memory does not grow).
      *
-     * @param string $path Путь файла.
-     * @return string Hex-строка sha256 (64 символа).
-     * @throws \RuntimeException Если файл не читается/не удалось посчитать хэш.
+     * @param string $path File path.
+     * @return string Hex sha256 string (64 characters).
+     * @throws \RuntimeException If the file is unreadable / the hash could not be computed.
      */
     public static function sha256(string $path): string
     {
@@ -272,14 +272,14 @@ final class Dump
     }
 
     /**
-     * Записывает манифест дампа в JSON (состав файлов, размеры, хэши,
-     * параметры БД). Флаги JSON_* дают читаемый вид без экранирования
-     * слэшей и кириллицы; каталог создаётся при необходимости.
+     * Writes the dump manifest as JSON (file inventory, sizes, hashes,
+     * database parameters). The JSON_* flags give a readable layout without escaping
+     * slashes or Cyrillic; the directory is created when needed.
      *
-     * Побочные эффекты: создаёт/перезаписывает файл манифеста и его каталог.
+     * Side effects: creates/overwrites the manifest file and its directory.
      *
-     * @param string $path Путь JSON-манифеста.
-     * @param array<string,mixed> $data Данные манифеста.
+     * @param string $path Path to the JSON manifest.
+     * @param array<string,mixed> $data Manifest data.
      */
     public static function writeManifest(string $path, array $data): void
     {
@@ -291,13 +291,13 @@ final class Dump
     }
 
     /**
-     * Читает манифест; JSON_THROW_ON_ERROR превращает битый JSON в
-     * исключение, чтобы импорт не продолжился с пустыми/ложными данными.
+     * Reads a manifest; JSON_THROW_ON_ERROR turns broken JSON into an
+     * exception, so that import does not continue with empty or wrong data.
      *
-     * @param string $path Путь JSON-манифеста.
-     * @return array<string,mixed> Разобранные данные манифеста.
-     * @throws \RuntimeException Если файл не читается.
-     * @throws \JsonException Если JSON повреждён.
+     * @param string $path Path to the JSON manifest.
+     * @return array<string,mixed> Parsed manifest data.
+     * @throws \RuntimeException If the file is unreadable.
+     * @throws \JsonException If the JSON is malformed.
      */
     public static function readManifest(string $path): array
     {
@@ -309,14 +309,14 @@ final class Dump
     }
 
     /**
-     * Обновляет указатель latest.json в каталоге дампов: имя последнего
-     * манифеста и время записи. По нему импорт без параметров находит
-     * самый свежий дамп.
+     * Updates the latest.json pointer in the dump directory: the name of the most
+     * recent manifest and the write time. Import without parameters uses it to find
+     * the freshest dump.
      *
-     * Побочные эффекты: создаёт/перезаписывает <dir>/latest.json.
+     * Side effects: creates/overwrites <dir>/latest.json.
      *
-     * @param string $dir Каталог дампов.
-     * @param string $manifestName Имя файла манифеста (basename).
+     * @param string $dir Dump directory.
+     * @param string $manifestName Manifest file name (basename).
      */
     public static function writeLatest(string $dir, string $manifestName): void
     {
@@ -327,11 +327,11 @@ final class Dump
     }
 
     /**
-     * Читает указатель последнего дампа; отсутствие файла — не ошибка
-     * (дампов ещё не было), возвращается null.
+     * Reads the pointer to the latest dump; a missing file is not an error
+     * (no dumps have been made yet), null is returned.
      *
-     * @param string $dir Каталог дампов.
-     * @return array<string,mixed>|null Данные latest.json или null.
+     * @param string $dir Dump directory.
+     * @return array<string,mixed>|null latest.json data or null.
      */
     public static function readLatest(string $dir): ?array
     {
@@ -343,17 +343,17 @@ final class Dump
     }
 
     /**
-     * Ротация дампов: удаляет манифесты (вместе с их файлами), которые
-     * выходят за лимит количества keep (самые новые сохраняются) ИЛИ
-     * старше olderDays дней (если лимит возраста задан). latest.json
-     * исключается из рассмотрения всегда.
+     * Dump rotation: deletes manifests (together with their files) that
+     * exceed the count limit keep (the newest ones are preserved) OR
+     * are older than olderDays days (if an age limit is set). latest.json
+     * is always excluded from consideration.
      *
-     * Побочные эффекты: безвозвратно удаляет файлы дампов и JSON-манифесты.
+     * Side effects: irreversibly deletes dump files and JSON manifests.
      *
-     * @param string $dir Каталог дампов.
-     * @param int $keep Сколько последних дампов хранить.
-     * @param int $olderDays Удалять дампы старше N дней; 0 — лимит возраста выключен.
-     * @return int Количество удалённых манифестов (дампов).
+     * @param string $dir Dump directory.
+     * @param int $keep How many of the most recent dumps to keep.
+     * @param int $olderDays Delete dumps older than N days; 0 disables the age limit.
+     * @return int Number of deleted manifests (dumps).
      */
     public static function prune(string $dir, int $keep, int $olderDays = 0): int
     {

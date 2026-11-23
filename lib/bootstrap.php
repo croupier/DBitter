@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace DbTools;
 
 /**
- * Точка инициализации ядра DBitter: подключается первым из start.php.
- * Проверяет, что запуск идёт из CLI, определяет константу ROOT (корень
- * инструмента), регистрирует автозагрузчик классов пространств DbTools\Lib,
- * DbTools\Transport, DbTools\Conf и DbTools\Action, а также подключает
- * глобальные функции-помощники из lib/helpers.php. Composer не используется.
+ * DBitter core initialization entry point: loaded first from start.php.
+ * Verifies that the tool runs from the CLI, defines the ROOT constant (tool
+ * root), registers an autoloader for the DbTools\Lib, DbTools\Transport,
+ * DbTools\Conf and DbTools\Action namespace classes, and loads the global
+ * helper functions from lib/helpers.php. Composer is not used.
  */
 
 // Инструмент рассчитан только на консольный запуск: при обращении через

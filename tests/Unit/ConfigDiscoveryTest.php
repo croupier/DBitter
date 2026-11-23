@@ -1,11 +1,12 @@
 <?php
 
 /**
- * Юнит-тесты discovery проекта в DbTools\Lib\Config: поиск корня проекта
- * вверх от cwd по маркерам, пропуск каталога инструмента, остановка на
- * .git-границе, legacy-фолбэк, слоение профилей (проект поверх инструмента)
- * и дефолты dump-каталога/имени проекта от найденного корня. Без БД:
- * используется временное дерево каталогов и настоящий conf/const.php.
+ * Unit tests for project discovery in DbTools\Lib\Config: locating the project
+ * root upward from cwd via markers, skipping the tool's own directory, stopping
+ * at the .git boundary, the legacy fallback, profile layering (project on top of
+ * tool), and the dump-directory/project-name defaults derived from the discovered
+ * root. No DB involved: a temporary directory tree and the real conf/const.php
+ * are used.
  */
 
 declare(strict_types=1);
@@ -17,18 +18,18 @@ use DbTools\Lib\Fs;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверяет контракт discovery, на который опирается пакетный режим:
- * проект находится от cwd, а не от расположения инструмента, и проектный
- * профиль dbitter.php/dbitter.local.php перекрывает профиль инструмента.
+ * Verifies the discovery contract the package mode relies on:
+ * the project is located from cwd, not from the tool's location, and the project
+ * profile dbitter.php/dbitter.local.php overrides the tool profile.
  */
 final class ConfigDiscoveryTest extends TestCase
 {
-    /** Временное дерево: base/tool — инструмент, base/proj — проект. */
+    /** Temporary tree: base/tool is the tool, base/proj is the project. */
     private string $base = '';
 
     /**
-     * Готовит изолированное дерево и копирует настоящий const-экстрактор
-     * в tool/conf/, чтобы тесты гоняли боевой код извлечения реквизитов.
+     * Prepares an isolated tree and copies the real const extractor
+     * into tool/conf/ so the tests exercise the production credential-extraction code.
      */
     protected function setUp(): void
     {
@@ -38,7 +39,7 @@ final class ConfigDiscoveryTest extends TestCase
         copy(dirname(__DIR__, 2) . '/conf/const.php', $this->base . '/tool/conf/const.php');
     }
 
-    /** Удаляет временное дерево после каждого теста. */
+    /** Removes the temporary tree after each test. */
     protected function tearDown(): void
     {
         if ($this->base !== '') {
@@ -46,23 +47,23 @@ final class ConfigDiscoveryTest extends TestCase
         }
     }
 
-    /** Путь к «корню инструмента» внутри временного дерева. */
+    /** Path to the "tool root" inside the temporary tree. */
     private function tool(): string
     {
         return $this->base . '/tool';
     }
 
-    /** Путь к «корню проекта» внутри временного дерева. */
+    /** Path to the "project root" inside the temporary tree. */
     private function proj(): string
     {
         return $this->base . '/proj';
     }
 
     /**
-     * Пишет PHP-файл, возвращающий массив (профиль или const-конфиг).
+     * Writes a PHP file that returns an array (a profile or a const config).
      *
-     * @param string $path Куда писать.
-     * @param array<string,mixed> $data Возвращаемый массив.
+     * @param string $path Where to write.
+     * @param array<string,mixed> $data The array to return.
      */
     private function putPhp(string $path, array $data): void
     {
@@ -70,9 +71,9 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * Проект находится вверх от cwd: запуск из глубокого подкаталога
-     * proj/sub/deep поднимается до proj по маркеру dbitter.php. Имя проекта
-     * и дефолтный dump-каталог считаются от найденного корня, а не от tool.
+     * The project is found upward from cwd: launching from the deep subdirectory
+     * proj/sub/deep walks up to proj via the dbitter.php marker. The project name
+     * and the default dump directory are computed from the discovered root, not from tool.
      */
     public function testDiscoverProjectUpwardFromCwd(): void
     {
@@ -89,9 +90,9 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * Каталог инструмента пропускается при обходе: даже с composer.json
-     * и .git внутри tool он не становится «проектом» — поиск продолжается
-     * вверх и находит proj по маркеру dbitter.php.
+     * The tool directory is skipped during the walk: even with composer.json
+     * and .git inside tool, it does not become the "project" — the search keeps
+     * going upward and finds proj via the dbitter.php marker.
      */
     public function testToolRootIsSkippedDuringWalk(): void
     {
@@ -111,9 +112,9 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * .git — граница обхода: если маркеров проекта нет, поиск не уходит
-     * за VCS-корень и Config откатывается к legacy-поведению
-     * (project = dirname(tool), dump по умолчанию в tool/dump).
+     * .git is a walk boundary: when no project markers are found, the search does
+     * not go past the VCS root and Config falls back to legacy behavior
+     * (project = dirname(tool), default dump in tool/dump).
      */
     public function testGitBoundaryTriggersLegacyFallback(): void
     {
@@ -129,9 +130,9 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * Слоение профилей: CLI > dbitter.local.php > dbitter.php (проект) >
-     * config.local.php > config.php (инструмент). Проектный профиль
-     * перекрывает инструментный, локальные файлы — свои основные.
+     * Profile layering: CLI > dbitter.local.php > dbitter.php (project) >
+     * config.local.php > config.php (tool). The project profile overrides
+     * the tool profile, and local files override their main counterparts.
      */
     public function testProfileLayersProjectOverTool(): void
     {
@@ -149,7 +150,7 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * Явный dump.dir в профиле важнее дефолта <project>/dump.
+     * An explicit dump.dir in the profile takes precedence over the <project>/dump default.
      */
     public function testExplicitDumpDirWinsOverProjectDefault(): void
     {
@@ -163,9 +164,9 @@ final class ConfigDiscoveryTest extends TestCase
     }
 
     /**
-     * const-экстрактор по умолчанию берёт реквизиты из dbitter.local.php
-     * проекта (приоритетнее dbitter.php — там секреты), а не из профиля
-     * инструмента.
+     * The const extractor by default takes credentials from the project's
+     * dbitter.local.php (takes precedence over dbitter.php — secrets live there),
+     * not from the tool profile.
      */
     public function testConstExtractorPrefersProjectLocalFile(): void
     {

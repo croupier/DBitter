@@ -3,19 +3,19 @@
 declare(strict_types=1);
 
 /**
- * Глобальные функции-помощники DBitter (без namespace, чтобы вызывать их
- * коротко из любого места). Подключаются из lib/bootstrap.php. Дают доступ
- * к корню инструмента (константа DbTools\ROOT) и генератору уникальных
- * меток времени для имён дампов и манифестов (см. Dump::baseName).
- * Имя проекта теперь отдаёт Config::projectName() — от найденного корня
- * проекта, а не от расположения инструмента.
+ * DBitter global helper functions (no namespace so they can be called
+ * briefly from anywhere). Loaded from lib/bootstrap.php. They expose access
+ * to the tool root (the DbTools\ROOT constant) and to a unique timestamp
+ * label generator used for dump and manifest names (see Dump::baseName).
+ * The project name is now returned by Config::projectName() — derived from
+ * the located project root, not from the tool's own location.
  */
 
 /**
- * Возвращает абсолютный путь к корню инструмента (каталог DBitter).
- * Используется для построения путей к config.php, conf/, dump/ и т.п.
+ * Returns the absolute path to the tool root (the DBitter directory).
+ * Used to build paths to config.php, conf/, dump/ and the like.
  *
- * @return string Путь без завершающего слэша.
+ * @return string Path without a trailing slash.
  */
 function dbt_root(): string
 {
@@ -23,9 +23,9 @@ function dbt_root(): string
 }
 
 /**
- * Метка времени для имён файлов дампов/манифестов: "Ymd-His-xxx".
+ * Timestamp label for dump/manifest file names: "Ymd-His-xxx".
  *
- * @return string Например, "20261110-153045-a1b".
+ * @return string For example, "20261110-153045-a1b".
  */
 function dbt_now(): string
 {

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие doctor: диагностика окружения и связности с MySQL.
+ * doctor action: environment and MySQL connectivity diagnostics.
  *
- * Запуск: php start.php doctor. Проверяет PHP-расширения (pdo_mysql, zlib),
- * наличие zstd/git, конфигурацию БД, работоспособность транспорта (local/ssh/wsl),
- * подключение к серверу и доступность каталога дампов на запись.
- * Ничего не изменяет — только читает и печатает отчёт; код возврата зависит
- * от числа проваленных проверок.
+ * Run: php start.php doctor. Checks PHP extensions (pdo_mysql, zlib),
+ * presence of zstd/git, database configuration, transport health (local/ssh/wsl),
+ * server connection and write access to the dump directory.
+ * Changes nothing — it only reads and prints a report; the exit code depends
+ * on the number of failed checks.
  */
 
 use DbTools\Lib\Command;
@@ -22,15 +22,15 @@ use DbTools\Lib\Menu;
 use DbTools\Lib\Sql;
 
 /**
- * Диагностическое действие: печатает отчёт по разделам (окружение, конфиг,
- * транспорт, связность, хранилище дампов) и считает количество ошибок.
+ * Diagnostic action: prints a sectioned report (environment, config,
+ * transport, connectivity, dump storage) and counts the number of errors.
  */
 final class Doctor extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'doctor'
+     * @return string always 'doctor'
      */
     public function name(): string
     {
@@ -38,9 +38,9 @@ final class Doctor extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -48,15 +48,15 @@ final class Doctor extends Action
     }
 
     /**
-     * Выполняет все проверки и печатает отчёт.
+     * Runs all checks and prints the report.
      *
-     * Побочные эффекты: вывод отчёта через Menu/Log; создаёт каталог дампов,
-     * если его ещё нет (Fs::ensureDir). Состояние БД не меняется —
-     * выполняются только SELECT VERSION() и чтение списка таблиц.
+     * Side effects: report output via Menu/Log; creates the dump directory
+     * if it does not exist yet (Fs::ensureDir). The database state is not changed —
+     * only SELECT VERSION() and reading the table list are executed.
      *
-     * @param Config $cfg  конфигурация проекта/окружения
-     * @param array  $opts опции CLI (для doctor не используются)
-     * @return int 0 — все проверки пройдены, 1 — есть проваленные проверки
+     * @param Config $cfg  project/environment configuration
+     * @param array  $opts CLI options (unused by doctor)
+     * @return int 0 — all checks passed, 1 — there are failed checks
      */
     public function run(Config $cfg, array $opts): int
     {

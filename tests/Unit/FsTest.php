@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты файловых утилит DbTools\Lib\Fs: определение ОС, конвертация
- * путей Windows → Unix/WSL (буква диска → /mnt/<диск>), пересчёт MiB в
- * байты и человекочитаемые размеры, идемпотентное создание каталогов.
- * Критично для WSL-транспорта: неверный путь сломал бы передачу дампов
- * между Windows-хостом и Linux-гостем. Без БД.
+ * Unit tests for the file utilities in DbTools\Lib\Fs: OS detection, Windows →
+ * Unix/WSL path conversion (drive letter → /mnt/<drive>), MiB-to-bytes
+ * conversion and human-readable sizes, idempotent directory creation.
+ * Critical for the WSL transport: a wrong path would break dump transfer
+ * between the Windows host and the Linux guest. No DB.
  */
 
 declare(strict_types=1);
@@ -16,15 +16,15 @@ use DbTools\Lib\Fs;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверки кроссплатформенных хелперов — выполняются на любом хосте,
- * ассерты не зависят от текущей ОС (кроме согласованности os/isWindows).
+ * Checks for the cross-platform helpers — they run on any host, and the
+ * assertions do not depend on the current OS (except os/isWindows consistency).
  */
 final class FsTest extends TestCase
 {
     /**
-     * os() возвращает одну из известных меток, а isWindows() строго
-     * согласован с ней — эти метки используются в именах дампов и логике
-     * транспортов.
+     * os() returns one of the known labels, and isWindows() is strictly
+     * consistent with it — these labels are used in dump names and transport
+     * logic.
      */
     public function testOsIsKnownLabel(): void
     {
@@ -33,8 +33,8 @@ final class FsTest extends TestCase
     }
 
     /**
-     * toUnix меняет обратные слеши на прямые (без смены диска) —
-     * нормализация путей для конфигов и манифестов.
+     * toUnix turns backslashes into forward ones (without changing the drive) —
+     * path normalization for configs and manifests.
      */
     public function testToUnix(): void
     {
@@ -42,9 +42,9 @@ final class FsTest extends TestCase
     }
 
     /**
-     * toWsl отображает Windows-путь в WSL: буква диска (в любом регистре,
-     * с обоими видами слешей) становится /mnt/<строчная буква>/... —
-     * так дамп на D:\ виден внутри WSL как /mnt/d/...
+     * toWsl maps a Windows path into WSL: the drive letter (any case, either
+     * slash style) becomes /mnt/<lowercase letter>/... — this is how a dump on
+     * D:\ appears inside WSL as /mnt/d/...
      */
     public function testToWslMapsDriveLetter(): void
     {
@@ -53,8 +53,8 @@ final class FsTest extends TestCase
     }
 
     /**
-     * Уже POSIX-путь toWsl не трогает — двойная конвертация недопустима
-     * (пути внутри WSL должны проходить как есть).
+     * toWsl leaves an already-POSIX path untouched — double conversion is
+     * unacceptable (paths inside WSL must pass through as is).
      */
     public function testToWslLeavesPosixPaths(): void
     {
@@ -62,9 +62,9 @@ final class FsTest extends TestCase
     }
 
     /**
-     * bytes() переводит MiB (в т.ч. дробные, --split=1.5) в байты;
-     * human() форматирует размеры в двоичных единицах (KiB/MiB),
-     * включая граничный ноль.
+     * bytes() converts MiB (including fractional values, --split=1.5) to bytes;
+     * human() formats sizes in binary units (KiB/MiB), including the boundary
+     * zero.
      */
     public function testBytesAndHuman(): void
     {
@@ -76,9 +76,8 @@ final class FsTest extends TestCase
     }
 
     /**
-     * ensureDir идемпотентен: повторный вызов на существующем каталоге
-     * не должен ни предупреждать, ни бросать исключение (его зовут перед
-     * каждой записью дампа).
+     * ensureDir is idempotent: calling it again on an existing directory must
+     * neither warn nor throw (it is invoked before every dump write).
      */
     public function testEnsureDirIsIdempotent(): void
     {

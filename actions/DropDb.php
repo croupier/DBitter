@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие drop-db: безвозвратное удаление базы данных (админ, деструктивно).
+ * drop-db action: irreversible database deletion (admin, destructive).
  *
- * Запуск: php start.php drop-db [--name=имя] [--yes] [--dry-run].
- * Без --yes запрашивает интерактивное подтверждение (по умолчанию «нет»).
- * Выполняет DROP DATABASE IF EXISTS от администратора. Используйте с максимальной
- * осторожностью: данные и структура БД удаляются без возможности отката.
+ * Run: php start.php drop-db [--name=name] [--yes] [--dry-run].
+ * Without --yes it asks for interactive confirmation (default "no").
+ * Executes DROP DATABASE IF EXISTS as the administrator. Use with maximum
+ * caution: database data and structure are deleted with no way back.
  */
 
 use DbTools\Lib\Config;
@@ -19,15 +19,15 @@ use DbTools\Lib\Menu;
 use DbTools\Lib\Sql;
 
 /**
- * Деструктивное административное действие удаления БД с обязательным
- * подтверждением (интерактивным или флагом --yes для скриптов).
+ * Destructive administrative action that drops a database with mandatory
+ * confirmation (interactive prompt or the --yes flag for scripts).
  */
 final class DropDb extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'drop-db'
+     * @return string always 'drop-db'
      */
     public function name(): string
     {
@@ -35,9 +35,9 @@ final class DropDb extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки (помечен как деструктивный).
+     * Title for the interactive menu/help (marked as destructive).
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -45,9 +45,9 @@ final class DropDb extends Action
     }
 
     /**
-     * CLI-опции действия для справки/меню.
+     * CLI options of the action for help/menu.
      *
-     * @return array<string,string> имя опции => описание
+     * @return array<string,string> option name => description
      */
     public function options(): array
     {
@@ -55,16 +55,16 @@ final class DropDb extends Action
     }
 
     /**
-     * Удаляет базу данных после подтверждения пользователя.
-     * Требует админских прав (execSql по умолчанию использует админа).
+     * Drops the database after the user confirms.
+     * Requires admin rights (execSql uses the admin by default).
      *
-     * Побочные эффекты: БЕЗВОЗВРАТНО удаляет БД со всеми данными; пишет в лог;
-     * без --yes задаёт интерактивный вопрос. --dry-run только печатает SQL.
-     * Отказ от подтверждения — не ошибка: возвращается 0 («Cancelled»).
+     * Side effects: IRREVERSIBLY deletes the database with all its data; writes to the log;
+     * without --yes it asks an interactive question. --dry-run only prints the SQL.
+     * Declining the confirmation is not an error: 0 is returned ("Cancelled").
      *
-     * @param Config $cfg  конфигурация (имя БД, админские реквизиты, флаги yes/dry-run)
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int 0 — успех/отмена/dry-run, 1 — ошибка выполнения SQL
+     * @param Config $cfg  configuration (database name, admin credentials, yes/dry-run flags)
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int 0 — success/cancellation/dry-run, 1 — SQL execution error
      */
     public function run(Config $cfg, array $opts): int
     {

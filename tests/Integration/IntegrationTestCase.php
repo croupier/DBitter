@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Базовый класс интеграционных тестов: гоняют настоящий CLI start.php
- * сабпроцессом против живого MySQL. Транспорт и подключение берутся из
- * собственного конфига проекта (config.php + config.local.php).
- * По умолчанию выключены (DBT_IT != 1 → markTestSkipped), чтобы юнит-прогон
- * `composer test` никогда не требовал базу данных.
+ * Base class for integration tests: they run the real CLI start.php
+ * as a child process against a live MySQL. Transport and connection come from
+ * the project's own config (config.php + config.local.php).
+ * Disabled by default (DBT_IT != 1 → markTestSkipped) so the unit run
+ * `composer test` never requires a database.
  */
 
 declare(strict_types=1);
@@ -17,24 +17,24 @@ use DbTools\Lib\Result;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Общая инфраструктура интеграционных тестов.
+ * Shared infrastructure for integration tests.
  *
- * Ключевые особенности:
- * - gate DBT_IT=1 в setUp(): без живой БД тесты пропускаются, а не падают;
- * - каждое действие выполняется ОТДЕЛЬНЫМ PHP-процессом (runTool), поэтому
- *   код start.php/lib внутри сабпроцесса НЕ попадает в coverage PHPUnit —
- *   покрытие собирается только в процессе самого тест-раннера. Это плата
- *   за реалистичность: проверяется настоящий CLI целиком, включая exit-коды.
+ * Key characteristics:
+ * - the DBT_IT=1 gate in setUp(): without a live DB tests are skipped, not failed;
+ * - each action runs in a SEPARATE PHP process (runTool), so the
+ *   start.php/lib code inside the child process does NOT land in PHPUnit coverage —
+ *   coverage is collected only in the test-runner process itself. This is the price
+ *   of realism: the whole real CLI is verified, including exit codes.
  */
 abstract class IntegrationTestCase extends TestCase
 {
-    /** Корень инструмента (DBitter) — от него строится путь к start.php. */
+    /** Tool root (DBitter) — the path to start.php is built from it. */
     protected string $toolRoot;
 
     /**
-     * Проверяет gate DBT_IT=1 и вычисляет корень инструмента.
-     * Без переменной окружения тест помечается пропущенным — юнит-прогон
-     * остаётся полностью автономным.
+     * Checks the DBT_IT=1 gate and computes the tool root.
+     * Without the environment variable the test is marked skipped — the unit run
+     * stays fully self-contained.
      */
     protected function setUp(): void
     {
@@ -45,11 +45,11 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Запускает одно действие DBitter сабпроцессом и возвращает его Result
-     * (exit-код, stdout/stderr). PHP_BINARY — тот же интерпретатор, что
-     * запустил PHPUnit, поэтому версия PHP в тесте и в инструменте совпадает.
+     * Runs one DBitter action as a child process and returns its Result
+     * (exit code, stdout/stderr). PHP_BINARY is the same interpreter that
+     * launched PHPUnit, so the PHP version in the test and in the tool match.
      *
-     * @param list<string> $args напр. ['export', '--kind=schema', '--dir=/tmp']
+     * @param list<string> $args e.g. ['export', '--kind=schema', '--dir=/tmp']
      */
     final protected function runTool(array $args): Result
     {

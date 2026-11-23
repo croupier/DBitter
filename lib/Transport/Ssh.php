@@ -7,17 +7,17 @@ namespace DbTools\Transport;
 use DbTools\Lib\Fs;
 
 /**
- * Транспорт «ssh»: mysql/mysqldump выполняются на удалённом хосте через
- * SSH-клиент (по умолчанию ssh; бинарник настраивается, можно указать иной
- * клиент, например plink, или полный путь к ssh.exe). Команда доставляется
- * удалённой оболочкой через `bash -c`, env сворачивается в эту строку.
+ * "ssh" transport: mysql/mysqldump run on a remote host via an
+ * SSH client (ssh by default; the binary is configurable — you can point at a
+ * different client such as plink, or a full path to ssh.exe). The command is
+ * delivered by the remote shell via `bash -c`, env is folded into that string.
  */
 final class Ssh extends Transport
 {
     /**
-     * Имя транспорта для логов и диагностики.
+     * Transport name for logs and diagnostics.
      *
-     * @return string Всегда 'ssh'.
+     * @return string Always 'ssh'.
      */
     public function name(): string
     {
@@ -25,12 +25,12 @@ final class Ssh extends Transport
     }
 
     /**
-     * Строка назначения user@host для SSH-клиента.
-     * Пользователь по умолчанию root; host обязателен — без него подключение
-     * невозможно, поэтому сразу бросаем понятное исключение.
+     * The user@host destination string for the SSH client.
+     * User defaults to root; host is required — without it connecting is
+     * impossible, so a clear exception is thrown right away.
      *
-     * @return string Назначение вида 'user@host'.
-     * @throws \RuntimeException Если в конфиге транспорта не задан host.
+     * @return string A destination of the form 'user@host'.
+     * @throws \RuntimeException If host is not set in the transport config.
      */
     private function destination(): string
     {
@@ -43,17 +43,17 @@ final class Ssh extends Transport
     }
 
     /**
-     * Собирает argv SSH-клиента: `<ssh> -T -p <port> [-i key] [-o option ...] user@host`.
+     * Builds the SSH client argv: `<ssh> -T -p <port> [-i key] [-o option ...] user@host`.
      *
-     * -T запрещает выделение псевдо-TTY: запуск неинтерактивный, stdin
-     * остаётся каналом для данных (SQL при импорте). Порт по умолчанию 22.
-     * Ключ (-i) — для входа по ключу вместо пароля. Произвольные опции из
-     * transport.options передаются как `-o <option>` (синтаксис OpenSSH):
-     * так задают, например, StrictHostKeyChecking=no для первого подключения
-     * к новому хосту без интерактивного подтверждения отпечатка.
+     * -T forbids allocating a pseudo-TTY: the launch is non-interactive, stdin
+     * stays a data channel (SQL during import). Default port is 22.
+     * The key (-i) is for key-based auth instead of a password. Arbitrary options from
+     * transport.options are passed as `-o <option>` (OpenSSH syntax):
+     * this is how you set, for example, StrictHostKeyChecking=no for the first
+     * connection to a new host without interactive fingerprint confirmation.
      *
-     * @return list<string> Аргументы ssh-клиента; bash-строка команды добавляется в launch().
-     * @throws \RuntimeException Если не задан host (через destination()).
+     * @return list<string> ssh client arguments; the command's bash string is appended in launch().
+     * @throws \RuntimeException If host is not set (via destination()).
      */
     private function launcher(): array
     {
@@ -72,18 +72,18 @@ final class Ssh extends Transport
     }
 
     /**
-     * Оборачивает команду целевой стороны в удалённый запуск через ssh.
+     * Wraps the target-side command into a remote launch over ssh.
      *
-     * «Сворачивание пароля»: env (включая MYSQL_PWD) превращается в
-     * присваивания KEY='value' внутри строки `bash -c` (viaBash). Пароль
-     * не попадает ни в argv ssh, ни в аргументы mysql на удалённой стороне
-     * и передаётся только внутри шифрованного SSH-канала; в логах строка
-     * маскируется (Command::mask).
+     * "Password folding": env (including MYSQL_PWD) becomes
+     * KEY='value' assignments inside the `bash -c` string (viaBash). The password
+     * enters neither ssh's argv nor the mysql arguments on the remote side
+     * and travels only inside the encrypted SSH channel; in logs the string
+     * is masked (Command::mask).
      *
-     * @param list<string> $argv Аргументы команды на удалённом хосте.
-     * @param array<string,string> $env Переменные окружения, сворачиваемые в удалённую bash-строку.
-     * @return array{cmd:string|list<string>,env:array<string,string>} Массив-команда для proc_open; env пуст.
-     * @throws \RuntimeException Если не задан host.
+     * @param list<string> $argv Command arguments on the remote host.
+     * @param array<string,string> $env Environment variables folded into the remote bash string.
+     * @return array{cmd:string|list<string>,env:array<string,string>} Array command for proc_open; env is empty.
+     * @throws \RuntimeException If host is not set.
      */
     public function launch(array $argv, array $env = []): array
     {
@@ -91,11 +91,11 @@ final class Ssh extends Transport
     }
 
     /**
-     * PDO из локального PHP не используется: сервер находится на удалённом
-     * хосте и может быть закрыт firewall'ом. SQL-действия выполняются через
-     * launch() и бинарник mysql на удалённой стороне.
+     * PDO from the local PHP is not used: the server sits on a remote
+     * host and may be closed off by a firewall. SQL actions run via
+     * launch() and the mysql binary on the remote side.
      *
-     * @return bool Всегда false.
+     * @return bool Always false.
      */
     public function pdoReachable(): bool
     {
@@ -103,11 +103,11 @@ final class Ssh extends Transport
     }
 
     /**
-     * Диагностика: наличие SSH-клиента локально, затем probe `mysql --version`
-     * на удалённом хосте — он же проверяет связность, аутентификацию и
-     * доступность mysql, то есть весь путь реальной команды.
+     * Diagnostics: presence of the SSH client locally, then a `mysql --version`
+     * probe on the remote host — which also checks connectivity, authentication
+     * and mysql availability, i.e. the entire path a real command takes.
      *
-     * @return array{ok:bool,info:string} ok — транспорт готов; info — версия mysql или текст ошибки.
+     * @return array{ok:bool,info:string} ok — transport is ready; info — the mysql version or the error text.
      */
     public function doctor(): array
     {

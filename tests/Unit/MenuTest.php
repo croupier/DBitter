@@ -1,11 +1,11 @@
 <?php
 
 /**
- * Юнит-тесты интерактивного меню DbTools\Lib\Menu при закрытом stdin.
- * Menu читает STDIN напрямую, поэтому проверки выполняются в отдельном
- * PHP-сабпроцессе с пустым stdin (мгновенный EOF): тест-раннер не может
- * зависнуть на ожидании ввода. Одновременно это проверка EOF-guard из
- * фикса ревью #6: choice() обязан завершаться, а не крутить вечный цикл.
+ * Unit tests for the interactive menu DbTools\Lib\Menu with stdin closed.
+ * Menu reads STDIN directly, so the checks run in a separate PHP subprocess
+ * with empty stdin (instant EOF): the test runner cannot hang waiting for
+ * input. At the same time this covers the EOF-guard from review fix #6:
+ * choice() must terminate instead of spinning in an endless loop.
  */
 
 declare(strict_types=1);
@@ -16,21 +16,21 @@ use DbTools\Lib\Command;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Menu читает STDIN напрямую, поэтому тесты гоняют выражения в сабпроцессе
- * с пустым stdin (немедленный EOF). Это и защита от зависания тест-раннера,
- * и проверка EOF-guard (фикс ревью #6): choice() должен завершаться,
- * а не зацикливаться навсегда.
+ * Menu reads STDIN directly, so the tests evaluate expressions in a subprocess
+ * with empty stdin (immediate EOF). This both protects the test runner from
+ * hanging and verifies the EOF-guard (review fix #6): choice() must terminate
+ * instead of looping forever.
  */
 final class MenuTest extends TestCase
 {
     /**
-     * Выполняет PHP-выражение в сабпроцессе: php -r с бутстрапом инструмента.
-     * Command::capture с третьим аргументом '' подаёт на stdin пустую строку
-     * и сразу закрывает пайп → fgets(STDIN) получает EOF. Если бы Menu
-     * зациклился на EOF, сабпроцесс завис бы навсегда — поэтому изоляция
-     * сабпроцессом обязательна (в процессе PHPUnit завис бы весь прогон).
+     * Runs a PHP expression in a subprocess: php -r with the tool's bootstrap.
+     * Command::capture with a third argument of '' feeds an empty line to stdin
+     * and closes the pipe immediately → fgets(STDIN) gets EOF. If Menu looped on
+     * EOF, the subprocess would hang forever — hence the subprocess isolation is
+     * mandatory (inside the PHPUnit process the whole run would freeze).
      *
-     * @return string trimmed stdout сабпроцесса
+     * @return string trimmed stdout of the subprocess
      */
     private function evalAtEof(string $expr): string
     {
@@ -42,10 +42,10 @@ final class MenuTest extends TestCase
     }
 
     /**
-     * Регрессия #6: choice() БЕЗ default на EOF обязан вернуть первый ключ
-     * и завершиться. Раньше ask() на EOF вечно возвращал пустую строку и
-     * while(true) крутился бесконечно — интерактивный режим вис намертво
-     * при перенаправленном/закрытом stdin.
+     * Regression #6: choice() WITHOUT a default must return the first key at EOF
+     * and terminate. Previously ask() kept returning an empty string at EOF and
+     * while(true) spun forever — interactive mode hung completely whenever stdin
+     * was redirected/closed.
      */
     public function testChoiceWithoutDefaultTerminatesAtEof(): void
     {
@@ -54,8 +54,8 @@ final class MenuTest extends TestCase
     }
 
     /**
-     * choice() с заданным default на EOF возвращает именно default,
-     * а не первый ключ списка.
+     * choice() with an explicit default returns that very default at EOF,
+     * not the first key of the list.
      */
     public function testChoiceHonorsDefaultAtEof(): void
     {
@@ -64,8 +64,8 @@ final class MenuTest extends TestCase
     }
 
     /**
-     * confirm() на EOF возвращает переданный default (оба варианта:
-     * true и false) — не зависает и не «угадывает» ответ.
+     * confirm() at EOF returns the default that was passed in (both variants:
+     * true and false) — it neither hangs nor "guesses" the answer.
      */
     public function testConfirmReturnsDefaultAtEof(): void
     {
@@ -74,8 +74,8 @@ final class MenuTest extends TestCase
     }
 
     /**
-     * ask() на EOF возвращает default-строку — базовый кирпич,
-     * на котором стоят confirm/choice.
+     * ask() at EOF returns the default string — the base building block
+     * that confirm/choice are built on.
      */
     public function testAskReturnsDefaultAtEof(): void
     {

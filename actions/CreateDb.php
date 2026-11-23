@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace DbTools\Action;
 
 /**
- * Действие create-db: создание базы данных с правами администратора.
+ * create-db action: creating a database with administrator privileges.
  *
- * Запуск: php start.php create-db [--name=имя] [--collation=...] [--dry-run].
- * Выполняет CREATE DATABASE IF NOT EXISTS с кодировкой из конфигурации
- * (по умолчанию utf8mb4) и коллацией <charset>_unicode_ci. Идемпотентно:
- * существующая БД не пересоздаётся и не повреждается.
+ * Run: php start.php create-db [--name=name] [--collation=...] [--dry-run].
+ * Executes CREATE DATABASE IF NOT EXISTS with the charset from the configuration
+ * (utf8mb4 by default) and the <charset>_unicode_ci collation. Idempotent:
+ * an existing database is neither recreated nor damaged.
  */
 
 use DbTools\Lib\Config;
@@ -18,15 +18,15 @@ use DbTools\Lib\Log;
 use DbTools\Lib\Sql;
 
 /**
- * Административное действие создания БД через execSql (PDO или mysql-клиент
- * транспорта с админскими реквизитами).
+ * Administrative database-creation action via execSql (PDO or the transport's
+ * mysql client with admin credentials).
  */
 final class CreateDb extends Action
 {
     /**
-     * Машинное имя действия для CLI.
+     * Machine action name for the CLI.
      *
-     * @return string всегда 'create-db'
+     * @return string always 'create-db'
      */
     public function name(): string
     {
@@ -34,9 +34,9 @@ final class CreateDb extends Action
     }
 
     /**
-     * Заголовок для интерактивного меню/справки.
+     * Title for the interactive menu/help.
      *
-     * @return string описание действия
+     * @return string description of the action
      */
     public function title(): string
     {
@@ -44,9 +44,9 @@ final class CreateDb extends Action
     }
 
     /**
-     * CLI-опции действия для справки/меню.
+     * CLI options of the action for help/menu.
      *
-     * @return array<string,string> имя опции => описание
+     * @return array<string,string> option name => description
      */
     public function options(): array
     {
@@ -57,15 +57,15 @@ final class CreateDb extends Action
     }
 
     /**
-     * Создаёт БД (если её ещё нет) с заданными кодировкой и коллацией.
-     * Требует админских прав: execSql по умолчанию берёт реквизиты админа.
+     * Creates the database (if it does not exist yet) with the given charset and collation.
+     * Requires admin rights: execSql takes admin credentials by default.
      *
-     * Побочные эффекты: создаёт базу данных на сервере; пишет в лог.
-     * В режиме --dry-run только печатает SQL, ничего не выполняя.
+     * Side effects: creates a database on the server; writes to the log.
+     * In --dry-run mode it only prints the SQL without executing anything.
      *
-     * @param Config $cfg  конфигурация (имя БД, charset, админские реквизиты)
-     * @param array  $opts опции CLI (значения читаются через $cfg->opt)
-     * @return int 0 — успех/отмена dry-run, 1 — ошибка выполнения SQL
+     * @param Config $cfg  configuration (database name, charset, admin credentials)
+     * @param array  $opts CLI options (values are read via $cfg->opt)
+     * @return int 0 — success/dry-run cancellation, 1 — SQL execution error
      */
     public function run(Config $cfg, array $opts): int
     {

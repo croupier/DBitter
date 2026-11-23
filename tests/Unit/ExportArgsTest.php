@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Юнит-тесты сборки аргументов mysqldump/mysql (ExportDump::buildArgs и
- * Action::clientBase). Проверяют флаги для каждого вида дампа, проброс
- * where/ignore-table/extra/tables и два инварианта безопасности:
- * пароль НИКОГДА не попадает в argv (только через MYSQL_PWD env),
- * а mysql_extra применяется только к клиенту mysql, но не к mysqldump.
- * Команды не запускаются — конфиг из фикстуры tests/_data/const_db.php.
+ * Unit tests for building mysqldump/mysql arguments (ExportDump::buildArgs and
+ * Action::clientBase). They verify the flags for each dump kind, the pass-through
+ * of where/ignore-table/extra/tables, and two security invariants:
+ * the password NEVER ends up in argv (only via the MYSQL_PWD env var),
+ * and mysql_extra applies only to the mysql client, not to mysqldump.
+ * No commands are run — the config comes from the tests/_data/const_db.php fixture.
  */
 
 declare(strict_types=1);
@@ -19,17 +19,17 @@ use DbTools\Lib\Config;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Проверки argv без исполнения: детерминированный конфиг (conf=const,
- * target=local) позволяет ассертить точный набор флагов на любой машине.
+ * argv checks without execution: a deterministic config (conf=const,
+ * target=local) allows asserting the exact flag set on any machine.
  */
 final class ExportArgsTest extends TestCase
 {
     /**
-     * Собирает Config на детерминированной фикстуре const_db.php
-     * (transport=local, чтобы не зависеть от настроек WSL/SSH машины)
-     * и накладывает переданные CLI-переопределения.
+     * Builds a Config on the deterministic const_db.php fixture
+     * (transport=local, to stay independent of the machine's WSL/SSH settings)
+     * and applies the given CLI overrides.
      *
-     * @param array<string,mixed> $cli дополнительные CLI-опции теста
+     * @param array<string,mixed> $cli additional CLI options for the test
      */
     private function cfg(array $cli = []): Config
     {
@@ -41,9 +41,9 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * kind=schema: только структура (--no-data), без --single-transaction
-     * (данные не читаются — консистентный снапшот не нужен); имя БД
-     * из конфига присутствует в argv.
+     * kind=schema: structure only (--no-data), without --single-transaction
+     * (no data is read — no consistent snapshot needed); the DB name
+     * from the config is present in argv.
      */
     public function testSchemaKindUsesNoData(): void
     {
@@ -54,8 +54,8 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * kind=data: только данные (--no-create-info), CREATE TABLE не
-     * выгружаются; --no-data быть не должно (взаимоисключающие флаги).
+     * kind=data: data only (--no-create-info), CREATE TABLE statements are
+     * not exported; --no-data must be absent (mutually exclusive flags).
      */
     public function testDataKindUsesNoCreateInfo(): void
     {
@@ -65,9 +65,9 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * kind=full: консистентный снапшот InnoDB (--single-transaction),
-     * --no-tablespaces (не требует привилегии PROCESS) и --hex-blob
-     * (бинарные данные в hex — безопасны при импорте).
+     * kind=full: a consistent InnoDB snapshot (--single-transaction),
+     * --no-tablespaces (does not require the PROCESS privilege) and --hex-blob
+     * (binary data in hex — safe on import).
      */
     public function testFullKindUsesSingleTransaction(): void
     {
@@ -78,9 +78,9 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * Проброс пользовательских опций: --where, повторяемый --ignore-table,
-     * повторяемый --extra (сырые флаги mysqldump) и список таблиц через
-     * запятую (пробелы вокруг имён обрезаются).
+     * Pass-through of user options: --where, repeatable --ignore-table,
+     * repeatable --extra (raw mysqldump flags) and a comma-separated table
+     * list (whitespace around names is trimmed).
      */
     public function testWhereIgnoreTableExtraAndTables(): void
     {
@@ -98,8 +98,8 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * Выключатели routines/triggers/events=false должны убирать
-     * соответствующие флаги из argv (по умолчанию они включены профилем).
+     * routines/triggers/events=false switches must remove the
+     * corresponding flags from argv (they are enabled by default in the profile).
      */
     public function testRoutinesTriggersEventsToggle(): void
     {
@@ -112,10 +112,10 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * Регрессия (фикс ревью #4): mysql_extra — флаги клиента mysql
-     * (например --skip-column-names), они НЕ должны попадать в argv
-     * mysqldump, который такие флаги не понимает и падал бы.
-     * clientBase protected — вызывается через рефлексию с dump=false/true.
+     * Regression (review fix #4): mysql_extra holds mysql client flags
+     * (e.g. --skip-column-names); they must NOT end up in mysqldump's argv,
+     * since mysqldump does not understand them and would fail.
+     * clientBase is protected — invoked via reflection with dump=false/true.
      */
     public function testMysqlExtraAppliesToClientNotDump(): void
     {
@@ -130,10 +130,10 @@ final class ExportArgsTest extends TestCase
     }
 
     /**
-     * Инвариант безопасности: пароль никогда не кладётся в argv —
-     * он виден в списке процессов любому пользователю системы.
-     * Пароль передаётся только через переменную окружения MYSQL_PWD;
-     * в базовом argv есть --user, но нет значения пароля из фикстуры.
+     * Security invariant: the password is never put into argv —
+     * it would be visible in the process list to any user on the system.
+     * The password is passed only via the MYSQL_PWD environment variable;
+     * the base argv has --user but not the fixture's password value.
      */
     public function testClientBaseNeverPutsPasswordInArgv(): void
     {

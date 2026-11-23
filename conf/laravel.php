@@ -5,21 +5,21 @@ declare(strict_types=1);
 use DbTools\Lib\Log;
 
 /**
- * Экстрактор реквизитов БД из Laravel-проекта.
+ * Database credentials extractor for Laravel projects.
  *
- * Предпочитает настоящий bootstrap фреймворка: так читаются кэшированный
- * конфиг (config:cache), подстановки env и нестандартное соединение по
- * умолчанию. Если bootstrap запрещён флагом, невозможен (нет vendor/ или
- * bootstrap/app.php) или упал — прозрачный fallback на простой разбор .env.
+ * Prefers the real framework bootstrap: that way the cached config
+ * (config:cache), env substitutions and a non-standard default connection are
+ * all honored. If bootstrap is disabled by the flag, impossible (no vendor/
+ * or bootstrap/app.php) or fails — fall back transparently to plain .env parsing.
  */
 
 /**
- * Возвращает замыкание-экстрактор: opts (root, path, bootstrap) -> нормализованный
- * массив реквизитов БД. При неудаче bootstrap делегирует conf/env.php.
+ * Returns the extractor closure: opts (root, path, bootstrap) -> normalized
+ * database credentials array. On bootstrap failure it delegates to conf/env.php.
  *
- * @param array{root:string,path?:string,bootstrap?:bool} $opts Корень проекта, путь к .env, флаг bootstrap (false — только .env).
- * @return array<string,mixed> Нормализованные реквизиты БД.
- * @throws RuntimeException Если и bootstrap, и разбор .env не дали имени БД (см. conf/env.php).
+ * @param array{root:string,path?:string,bootstrap?:bool} $opts Project root, path to .env, bootstrap flag (false — .env only).
+ * @return array<string,mixed> Normalized database credentials.
+ * @throws RuntimeException If neither bootstrap nor .env parsing yielded a database name (see conf/env.php).
  */
 return static function (array $opts): array {
     $root = $opts['root'];
